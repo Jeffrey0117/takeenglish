@@ -357,6 +357,10 @@ function renderAuth() {
   }
 }
 
+function identityOf(user) {
+  return user ? user.id || user.sub || user.email || 'signed-in' : null
+}
+
 function waitForLetMeUse() {
   return new Promise((resolve) => {
     if (sdk()?.ready) return resolve()
@@ -402,10 +406,13 @@ async function initAuth() {
   // 頁面一開就搜尋時登入狀態還沒好,先以訪客身分出結果;身分確定後補搜一次
   if (state.user && state.query) rerunSearch()
   s.onAuthChange(async (user) => {
+    // SDK 初始化時也會回報一次「目前是誰」。身分沒變就不要重搜:
+    // 重搜會重畫卡片,使用者剛按下播放的影片會被換掉。
+    const changed = identityOf(user) !== identityOf(state.user)
     state.user = user
     await refreshMe()
     renderAuth()
-    rerunSearch()
+    if (changed) rerunSearch()
   })
   await handleCheckoutReturn()
 }
