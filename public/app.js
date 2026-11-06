@@ -22,7 +22,11 @@ const PLAN_COPY = {
   link: '方案',
   names: { guest: '訪客', free: '免費會員', pro: 'Pro' },
   prices: { guest: '不用登入', free: 'NT$0' },
-  rows: { results: '搜尋結果', subtitles: '字幕', download: '下載 mp4' },
+  rows: { results: '搜尋結果', subtitles: '字幕', study: '逐句解析', download: '下載 mp4' },
+  studyButton: '逐句解析',
+  studyPerDay: (n) => `每天 ${n} 支`,
+  unlimited: '不限',
+  videoLearning: '影片學習',
   all: '全部',
   current: '目前方案',
   login: '免費登入',
@@ -44,6 +48,8 @@ const state = {
     freeLimit: 3,
     tiers: [],
     newsletter: false,
+    study: false,
+    links: {},
     billing: { enabled: false, plan: null }
   },
   user: null,
@@ -290,6 +296,16 @@ function clipCard(clip, query) {
     }
     metaRight.appendChild(cc)
   }
+  if (clip.id && hasSubs && state.config.study && authEnabled()) {
+    const study = document.createElement('button')
+    study.className = 'study-btn'
+    study.textContent = PLAN_COPY.studyButton
+    study.onclick = (e) => {
+      e.stopPropagation()
+      toggleStudy(card, video, clip, study)
+    }
+    metaRight.appendChild(study)
+  }
   if (clip.id && authEnabled()) {
     const dl = document.createElement('button')
     dl.className = 'dl-btn'
@@ -405,6 +421,9 @@ function renderPlans(container) {
     const rows = [
       [PLAN_COPY.rows.results, resultsLabel(tier.features.results), true],
       [PLAN_COPY.rows.subtitles, '', Boolean(tier.features.subtitles)],
+      ...(state.config.study
+        ? [[PLAN_COPY.rows.study, tier.features.study === null ? PLAN_COPY.unlimited : PLAN_COPY.studyPerDay(tier.features.study), tier.features.study !== 0]]
+        : []),
       [PLAN_COPY.rows.download, '', Boolean(tier.features.download)]
     ]
     for (const [label, value, included] of rows) {
@@ -524,6 +543,7 @@ const configReady = loadConfig()
 
 async function initAuth() {
   await configReady
+  renderSiteLinks()
   // 方案區塊不用等登入元件,設定到了就先畫
   renderPlans($('#plans'))
   $('#plans-link').classList.toggle('hidden', !authEnabled())
@@ -719,6 +739,113 @@ async function downloadClip(clip, btn) {
   } finally {
     btn.disabled = false
   }
+}
+
+// ---- 逐句解析(點字就懂) ----
+
+// 卡片展開成「左邊影片、右邊逐句」;再按一次收起來
+async function toggleStudy(card, video, clip, btn) {
+  const existing = card.querySelector('.study-panel')
+  if (existing) {
+    // 連同「播到哪亮到哪」的監聽一起拿掉,不然每開一次就多掛一個
+    if (existing.unfollow) existing.unfollow()
+    existing.remove()
+    card.classList.remove('studying')
+    btn.classList.remove('on')
+    return
+  }
+  if (!state.user) return sdk()?.login()
+
+  const { el, renderLine, explain, request, TEXT, closeTips } = window.teStudy
+  const panel = el('div', 'study-panel')
+  panel.append(el('p', 'study-note', TEXT.loading))
+  card.classList.add('studying')
+  card.append(panel)
+  btn.classList.add('on')
+  btn.disabled = true
+
+  const res = await request(`/api/clips/${encodeURIComponent(clip.id)}/study`, getToken()).catch(() => null)
+  btn.disabled = false
+  panel.replaceChildren()
+  if (!res || !res.ok) {
+    const info = explain(res ? res.status : 0, res ? res.body : null)
+    const note = el('p', 'study-note', info.message)
+    if (info.action === 'upgrade' && proPlan()) {
+      const upgrade = el('button', 'auth-btn', PLAN_COPY.upgrade)
+      upgrade.onclick = openUpgrade
+      note.append(upgrade)
+    }
+    panel.append(note)
+    return
+  }
+
+  const lines = res.data.cues.map((cue) => {
+    const row = renderLine(cue)
+    row.classList.add('seekable')
+    // 點一句就跳到那一句開始播
+    row.onclick = () => {
+      closeTips(panel)
+      attachCaptions(video, clip.subs)
+      video.dataset.started = '1'
+      video.currentTime = cue.start
+      video.play().catch(() => {})
+    }
+    panel.append(row)
+    return { row, start: cue.start, end: cue.end }
+  })
+  if (res.data.quota && res.data.quota.limit !== null) {
+    panel.append(el('p', 'study-quota', `今天已解析 ${res.data.quota.used} / ${res.data.quota.limit} 支`))
+  }
+  // 播到哪一句就亮哪一句
+  const following = new AbortController()
+  panel.unfollow = () => following.abort()
+  video.addEventListener('timeupdate', () => {
+    if (!panel.isConnected) return following.abort()
+    const now = video.currentTime
+    for (const line of lines) {
+      const active = now >= line.start && now < line.end
+      if (active && !line.row.classList.contains('active')) {
+        line.row.scrollIntoView({ block: 'nearest' })
+      }
+      line.row.classList.toggle('active', active)
+    }
+  }, { signal: following.signal })
+}
+
+// 導覽列加上通往姊妹站的連結;已登入就帶著登入狀態過去(不用再登入一次)
+function renderSiteLinks() {
+  const target = (state.config.links || {}).reelscript
+  if (!target || !target.url) return
+  for (const nav of document.querySelectorAll('.site-nav')) {
+    if (nav.querySelector('.nav-reelscript')) continue
+    const link = document.createElement('a')
+    link.className = 'nav-reelscript'
+    link.textContent = PLAN_COPY.videoLearning
+    link.href = target.url
+    link.onclick = (e) => handoff(e, target)
+    nav.insertBefore(link, nav.querySelector('.nav-plans'))
+  }
+}
+
+async function handoff(event, target) {
+  const token = getToken()
+  const base = state.config.letmeuse.baseUrl
+  if (!token || !target.appId || !base) return
+  event.preventDefault()
+  let destination = target.url
+  try {
+    const res = await fetch(`${base}/api/auth/sso/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ targetAppId: target.appId })
+    })
+    const json = await res.json()
+    const code = (json.data || json).code
+    if (res.ok && code) destination = `${target.url}/sso#code=${encodeURIComponent(code)}&next=${encodeURIComponent('/')}`
+  } catch {
+    /* 換不到通行碼就當一般連結,過去再登入 */
+  }
+  location.href = destination
 }
 
 // ---- 搜尋 ----

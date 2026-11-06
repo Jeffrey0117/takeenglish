@@ -111,6 +111,30 @@ npm test
 - 設 `NEWSLETTER_SUBSCRIBE_URL`(完整網址)與 `NEWSLETTER_SITE_ID` 才啟用;啟用時登入按鈕旁會顯示告知文字
 - 測試用網域(example.com 等)不會送出
 
+## 逐句解析(點字就懂)
+
+- 英文句子送去標註引擎(ReelScript 的 `POST /api/internal/annotate`),拿回每句的中文和重點片語;`src/annotator.js` 把結果存在 `cache/annotations/`,同一段只算一次(每次呼叫都要花 AI 的錢)
+- 三個入口(`src/study-routes.js`):
+  - 片段字幕 `GET /api/clips/:id/study`:要登入;免費會員每天 3 支不同的片段,Pro 不限
+  - 每集劇情介紹 `GET /api/shows/:id/seasons/:n/episodes/:ep/study`:前 3 集人人可看,之後要 Pro
+  - 整集台詞 `…/transcript?page=`:同上的集數規則,要先匯入字幕檔
+- 額度都在 `src/plans.js`(`study`、`studyEpisodes`)
+- 匯入整集字幕(.srt 或 .vtt),要在跑站的主機上執行,不用重新部署:
+  `node scripts/import-episode-subtitles.js <show-id> <季> <集> <字幕檔>`,存到 `data/transcripts/`(不進版控)
+- 畫面元件在 `public/study.js`,片語搜尋頁和看劇區共用;點片語會出現中文和「看影集怎麼講」(連到片語搜尋)
+
+## 一張通行證(與 ReelScript)
+
+- `PAYGATE_ALSO_PRODUCTS=reelscript`:ReelScript 的有效訂閱在本站也算 Pro
+- 反方向:PayGate 上本站產品的 hook 指到 ReelScript 的 webhook,本站的 Pro 在 ReelScript 也生效
+- 導覽列的「影片學習」連到 ReelScript;已登入時先跟 LetMeUse 換一次性通行碼(SSO),過去不用再登入
+
+| 變數 | 說明 |
+|---|---|
+| ANNOTATE_URL / ANNOTATE_TOKEN | 標註引擎的位置與內部金鑰。沒設就不顯示逐句解析 |
+| PAYGATE_ALSO_PRODUCTS | 也算 Pro 的姊妹產品,逗號分隔 |
+| REELSCRIPT_URL / REELSCRIPT_APP_ID | 姊妹站網址與它的 LetMeUse app 代號 |
+
 ## 之後再說
 
 - 部署(CloudPipe)時 clipcafe-api 要一起上

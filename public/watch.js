@@ -19,6 +19,13 @@ const TEXT = {
   empty: '還沒有任何影集',
   error: '載入失敗,重新整理再試一次',
   notFound: '找不到這一季',
+  videoLearning: '影片學習',
+  study: '逐句解析',
+  transcript: '整集台詞',
+  moreLines: '載入更多台詞',
+  proOnly: 'PRO',
+  login: '登入',
+  plans: '看方案',
   sourceLead: '劇情介紹與集數資料來自維基百科',
   licenseLead: '授權'
 }
@@ -176,6 +183,8 @@ function episodeRow(season, ep) {
     toggle.textContent = open ? TEXT.less : TEXT.more
   }
   body.appendChild(toggle)
+  const actions = episodeActions(body, season, ep)
+  if (actions) body.appendChild(actions)
   row.appendChild(body)
 
   // 等版面排好才知道有沒有被截斷;沒截斷就不需要「展開」
@@ -184,6 +193,100 @@ function episodeRow(season, ep) {
     if (!clipped) toggle.remove()
   })
   return row
+}
+
+// ---- 逐句解析 / 整集台詞 ----
+
+function studyEnabled() {
+  const config = window.teSession.config()
+  return Boolean(config && config.study)
+}
+
+// 前幾集開放解析(訪客也能試);null = 全部開放
+function freeEpisodes() {
+  const config = window.teSession.config()
+  const guest = config && (config.tiers || []).find((tier) => tier.id === 'guest')
+  return guest ? guest.features.studyEpisodes : 0
+}
+
+function studyNote(box, info) {
+  const { el } = window.teStudy
+  const note = el('p', 'study-note', info.message)
+  if (info.action === 'login') {
+    const login = el('button', 'auth-btn', TEXT.login)
+    login.onclick = () => window.teSession.login()
+    note.append(login)
+  } else if (info.action === 'upgrade') {
+    const plans = el('a', 'auth-btn', TEXT.plans)
+    plans.href = '/#plans'
+    plans.style.textDecoration = 'none'
+    note.append(plans)
+  }
+  box.replaceChildren(note)
+}
+
+// kind: 'study' = 這一集劇情介紹的逐句解析;'transcript' = 整集台詞(有匯入才有)
+async function toggleEpisodeStudy(body, season, ep, kind, btn) {
+  const { el, renderLine, explain, request, TEXT: STUDY_TEXT } = window.teStudy
+  const existing = body.querySelector(`.ep-study[data-kind="${kind}"]`)
+  if (existing) {
+    existing.remove()
+    btn.classList.remove('on')
+    return
+  }
+  const box = el('div', 'ep-study')
+  box.dataset.kind = kind
+  box.append(el('p', 'study-note', STUDY_TEXT.loading))
+  body.append(box)
+  btn.classList.add('on')
+  btn.disabled = true
+
+  await window.teSession.ready
+  const base = `/api/shows/${encodeURIComponent(season.show.id)}/seasons/${season.season}/episodes/${ep.number}`
+
+  async function load(page) {
+    const path = kind === 'transcript' ? `${base}/transcript?page=${page}` : `${base}/study`
+    const res = await request(path, window.teSession.getToken()).catch(() => null)
+    if (!res || !res.ok) {
+      if (page === 0) studyNote(box, explain(res ? res.status : 0, res ? res.body : null))
+      // 後面幾頁載入失敗:把「載入更多」按鈕恢復,讓人可以再按一次
+      const stuck = box.querySelector('.study-more')
+      if (stuck) stuck.disabled = false
+      return
+    }
+    if (page === 0) box.replaceChildren()
+    box.querySelector('.study-more')?.remove()
+    for (const line of kind === 'transcript' ? res.data.lines : res.data.sentences) box.append(renderLine(line))
+    if (kind === 'transcript' && res.data.page + 1 < res.data.pages) {
+      const more = el('button', 'study-more', TEXT.moreLines)
+      more.type = 'button'
+      more.onclick = () => {
+        more.disabled = true
+        load(res.data.page + 1)
+      }
+      box.append(more)
+    }
+  }
+  await load(0)
+  btn.disabled = false
+}
+
+function episodeActions(body, season, ep) {
+  const { el } = window.teStudy
+  const actions = el('div', 'ep-actions')
+  const open = freeEpisodes()
+  const locked = open !== null && ep.number > open
+  const add = (kind, label) => {
+    const btn = el('button', 'study-btn', label)
+    btn.type = 'button'
+    btn.onclick = () => toggleEpisodeStudy(body, season, ep, kind, btn)
+    actions.append(btn)
+  }
+  if (studyEnabled()) add('study', TEXT.study)
+  if (studyEnabled() && ep.hasTranscript) add('transcript', TEXT.transcript)
+  if (actions.children.length === 0) return null
+  if (locked) actions.append(el('span', 'ep-lock', TEXT.proOnly))
+  return actions
 }
 
 function renderSeason() {
@@ -255,6 +358,15 @@ async function getJson(url) {
 
 async function init() {
   renderLangSwitch()
+  // 要先知道站台設定(有沒有開逐句解析、前幾集免費),每一集的按鈕才畫得對
+  await window.teSession.configReady
+  const sister = ((window.teSession.config() || {}).links || {}).reelscript
+  const nav = document.querySelector('.site-nav')
+  if (sister && typeof sister.url === 'string' && sister.url.startsWith('https://') && nav) {
+    const link = el('a', '', TEXT.videoLearning)
+    link.href = sister.url
+    nav.insertBefore(link, nav.lastElementChild)
+  }
   const showId = params.get('show')
   const seasonNumber = Number.parseInt(params.get('season') || '', 10)
   try {

@@ -12,45 +12,63 @@ function toQuota(limit) {
 //   free : 登入的免費會員
 //   pro  : 付費會員(價格以 PayGate 的方案為準,這裡不寫金額)
 // 之後要加付費功能,在 features 加一個欄位、後端用 can() 擋就好。
-function createPlans({ guestLimit = 3, memberLimit = 0 } = {}) {
+//
+// 數字型的功能是額度:study = 每天可以逐句解析幾支片段,studyEpisodes = 看劇區前幾集開放解析。
+function createPlans({ guestLimit = 3, memberLimit = 0, studyPerDay = 3, freeEpisodes = 3 } = {}) {
   const paywall = createPaywall({
     tiers: [
       {
         id: 'guest',
         name: '訪客',
         price: 0,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes }
       },
       {
         id: 'free',
         name: '免費會員',
         price: 0,
-        features: { results: toQuota(memberLimit), subtitles: true, download: false }
+        features: {
+          results: toQuota(memberLimit),
+          subtitles: true,
+          download: false,
+          study: studyPerDay,
+          studyEpisodes: freeEpisodes
+        }
       },
       {
         id: 'pro',
         name: 'Pro',
         price: 0,
-        features: { results: UNLIMITED, subtitles: true, download: true }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED }
       }
     ]
   })
 
+  // 這個等級某項額度是多少;null = 不限,0 = 沒有
+  function quota(tier, feature) {
+    const limit = paywall.tier(tier).features[feature]
+    return limit === UNLIMITED ? null : limit
+  }
+
   // 這個等級一次搜尋最多看幾筆;null = 不限
   function resultLimit(tier) {
-    const limit = paywall.tier(tier).features.results
-    return limit === UNLIMITED ? null : limit
+    return quota(tier, 'results')
   }
 
   function summary() {
     return paywall.allTiers().map((tier) => ({
       id: tier.id,
       name: tier.name,
-      features: { ...tier.features, results: resultLimit(tier.id) }
+      features: {
+        ...tier.features,
+        results: resultLimit(tier.id),
+        study: quota(tier.id, 'study'),
+        studyEpisodes: quota(tier.id, 'studyEpisodes')
+      }
     }))
   }
 
-  return { can: paywall.can, resultLimit, summary }
+  return { can: paywall.can, quota, resultLimit, summary }
 }
 
 module.exports = { createPlans }

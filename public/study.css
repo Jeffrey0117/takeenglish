@@ -1,0 +1,85 @@
+/* 「點字就懂」:逐句解析的共用樣式(片語搜尋頁的卡片、看劇區的每一集) */
+.study-line { padding: 10px 12px; border-left: 3px solid transparent; cursor: default; }
+.study-line + .study-line { border-top: 1px solid var(--line); }
+.study-line.seekable { cursor: pointer; }
+.study-line.seekable:hover { background: rgba(255, 214, 10, 0.05); }
+.study-line.active { border-left-color: var(--yellow); background: rgba(255, 214, 10, 0.08); }
+.study-en { font-size: 15px; font-weight: 600; line-height: 1.7; }
+.study-zh { color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.6; margin-top: 3px; }
+
+.study-word {
+  display: inline;
+  padding: 0 1px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px dotted var(--yellow);
+  color: var(--yellow);
+  font: inherit;
+  cursor: pointer;
+}
+.study-word:hover,
+.study-word.open { background: var(--yellow); color: #000; border-bottom-style: solid; }
+.study-tip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 6px;
+  padding: 2px 9px;
+  background: #000;
+  border: 1px solid var(--yellow);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.study-tip-zh { color: var(--text); }
+.study-tip-link { color: var(--yellow); font-size: 12px; text-decoration: none; }
+.study-tip-link:hover { text-decoration: underline; }
+
+.study-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.study-btn:hover,
+.study-btn.on { border-color: var(--yellow); color: var(--yellow); }
+.study-btn:disabled { opacity: 0.5; cursor: default; }
+
+.study-note { padding: 14px 12px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.study-note .auth-btn { margin-left: 12px; padding: 5px 14px; font-size: 13px; }
+.study-quota { padding: 8px 12px; color: var(--muted); font-size: 12px; font-weight: 700; border-top: 1px solid var(--line); }
+
+/* 片語搜尋頁:解析中的卡片佔滿一整列,左邊影片、右邊逐句 */
+.clip-card.studying {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-items: start;
+}
+.clip-card.studying .player { grid-column: 1; grid-row: 1; }
+.clip-card.studying .clip-body { grid-column: 1; grid-row: 2; }
+.study-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  max-height: 420px;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+}
+@media (max-width: 760px) {
+  .clip-card.studying { display: block; }
+  .study-panel { max-height: 360px; border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* 看劇區:每一集底下展開 */
+.ep-study { margin-top: 12px; border: 1px solid var(--line); background: #0a0a0a; }
+.ep-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ep-lock { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1px; margin-left: 6px; }
+.study-more { display: block; width: 100%; padding: 10px; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--yellow); font-size: 13px; font-weight: 800; cursor: pointer; }
+.study-more:hover { background: rgba(255, 214, 10, 0.06); }

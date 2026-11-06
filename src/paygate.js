@@ -17,6 +17,8 @@ function createPaygate({
   token,
   product = 'takeenglish',
   planId = 'takeenglish:pro:monthly',
+  // 一張通行證:這些姊妹產品的有效訂閱也算 Pro(例如 reelscript)
+  alsoProducts = [],
   fetchImpl = globalThis.fetch,
   now = Date.now,
   ttlMs = 60_000,
@@ -56,11 +58,27 @@ function createPaygate({
   async function lookup(key) {
     const previous = users.get(key)
     try {
-      const query = new URLSearchParams({ email: key, product })
-      const data = await call(`/api/subscription/check?${query}`)
-      // 回應長得不對就當失敗,不要把付費的人誤記成免費
-      if (typeof data.active !== 'boolean') throw new Error('subscription check returned no "active" field')
-      const value = data.active ? { tier: 'pro', activeUntil: data.end_date || null } : FREE
+      // 先查本站的訂閱,沒有再依序查姊妹產品;任何一個有效就是 Pro
+      let value = FREE
+      for (const name of [product, ...alsoProducts]) {
+        const query = new URLSearchParams({ email: key, product: name })
+        let data
+        try {
+          data = await call(`/api/subscription/check?${query}`)
+          // 回應長得不對就當失敗,不要把付費的人誤記成免費
+          if (typeof data.active !== 'boolean') throw new Error('subscription check returned no "active" field')
+        } catch (err) {
+          // 本站自己的訂閱查不到是大事(往外丟,走沿用舊答案那條路);
+          // 姊妹產品只是加分,查不到就略過,不要拖垮本站的判斷
+          if (name === product) throw err
+          onError(new Error(`sister product "${name}" check failed: ${err.message}`))
+          continue
+        }
+        if (data.active) {
+          value = { tier: 'pro', activeUntil: data.end_date || null, via: name }
+          break
+        }
+      }
       remember(key, { value, at: now() })
       return value
     } catch (err) {

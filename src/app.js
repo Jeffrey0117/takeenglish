@@ -10,6 +10,9 @@ const { createSharePage } = require('./share-page')
 const { createShowLibrary } = require('./shows')
 const { createNewsletter } = require('./newsletter')
 const { createShowArtwork } = require('./show-artwork')
+const { createAnnotator } = require('./annotator')
+const { createTranscriptLibrary } = require('./transcripts')
+const { mountStudyRoutes, createDailyUsage } = require('./study-routes')
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
 const SHOW_ID_PATTERN = /^[a-z0-9-]{1,80}$/
@@ -66,6 +69,10 @@ function createApp({
   strictPlayback = false,
   shows = createShowLibrary({ dir: path.join(__dirname, '..', 'data', 'shows') }),
   newsletter = createNewsletter(),
+  annotator = createAnnotator(),
+  transcripts = createTranscriptLibrary({ dir: path.join(__dirname, '..', 'data', 'transcripts') }),
+  // 給前端的站外連結(例如姊妹站),網址由環境變數給,不寫死在原始碼
+  links = {},
   letmeuse = {}
 }) {
   if (!tokens) throw new Error('createApp needs media tokens')
@@ -176,12 +183,27 @@ function createApp({
         tiers: plans.summary(),
         // 註冊會同步到電子報名單時,前端要在登入按鈕旁邊講清楚
         newsletter: newsletter.enabled,
+        // 「逐句解析」有沒有開(要接上標註引擎才有)
+        study: annotator.enabled,
+        links,
         billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
       }
     })
   })
 
   mountMemberRoutes(app, { viewer, plans, paygate, tokens, limiter, publicUrl })
+  mountStudyRoutes(app, {
+    viewer,
+    plans,
+    tokens,
+    clipcafe,
+    annotator,
+    shows,
+    transcripts,
+    usage: createDailyUsage(),
+    limiter,
+    clientIp
+  })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })
@@ -210,7 +232,12 @@ function createApp({
     if (!season) return res.status(404).json({ success: false, error: 'season not found' })
     const art = await artwork.get(season.show, number)
     showCache(res, Boolean(art))
-    return res.json({ success: true, data: { ...season, artwork: art } })
+    // 哪幾集已經匯入整集台詞,前端才知道要不要顯示入口
+    const episodes = season.episodes.map((ep) => ({
+      ...ep,
+      hasTranscript: transcripts.has(req.params.id, number, ep.number)
+    }))
+    return res.json({ success: true, data: { ...season, episodes, artwork: art } })
   })
 
   app.get('/api/search', async (req, res) => {

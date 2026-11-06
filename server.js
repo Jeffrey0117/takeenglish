@@ -6,6 +6,7 @@ const crypto = require('node:crypto')
 const { createMediaTokens } = require('./src/media-tokens')
 const { createPaygate } = require('./src/paygate')
 const { createNewsletter } = require('./src/newsletter')
+const { createAnnotator } = require('./src/annotator')
 const { createApp } = require('./src/app')
 const { createClipcafeClient } = require('./src/clipcafe-client')
 const { createAuth } = require('./src/auth')
@@ -25,8 +26,16 @@ const app = createApp({
   paygate: createPaygate({
     baseUrl: process.env.PAYGATE_URL,
     token: process.env.PAYGATE_TOKEN,
-    planId: process.env.PRO_PLAN_ID || 'takeenglish:pro:monthly'
+    planId: process.env.PRO_PLAN_ID || 'takeenglish:pro:monthly',
+    alsoProducts: (process.env.PAYGATE_ALSO_PRODUCTS || '').split(',').map((name) => name.trim()).filter(Boolean)
   }),
+  annotator: createAnnotator({
+    url: process.env.ANNOTATE_URL,
+    apiKey: process.env.ANNOTATE_TOKEN,
+    cacheDir: require('node:path').join(__dirname, 'cache', 'annotations'),
+    maxNewPerDay: Number.parseInt(process.env.ANNOTATE_DAILY_CAP || '', 10) || 500
+  }),
+  links: siteLinks(),
   publicUrl: (process.env.PUBLIC_URL || '').replace(/[/]+$/, ''),
   memberLimit: memberLimit(),
   strictPlayback: process.env.STRICT_PLAYBACK === '1',
@@ -65,6 +74,13 @@ function mediaSecret() {
   if (configured.length >= 32) return configured
   process.stderr.write('MEDIA_SECRET missing or shorter than 32 chars: using a random one for this run\n')
   return crypto.randomBytes(32).toString('hex')
+}
+
+// 導覽列上通往姊妹站的連結。網址和對方的登入 app 代號都由環境變數給
+function siteLinks() {
+  const url = (process.env.REELSCRIPT_URL || '').replace(/[/]+$/, '')
+  if (!/^https:[/][/]/.test(url)) return {}
+  return { reelscript: { url, appId: process.env.REELSCRIPT_APP_ID || '' } }
 }
 
 // 免費會員每次搜尋看幾筆。沒設 = 10;設 0 = 不限(登入就看全部)
