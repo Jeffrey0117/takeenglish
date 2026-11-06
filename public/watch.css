@@ -1,0 +1,137 @@
+/* 看劇學習區。顏色與字體沿用 style.css 的變數 */
+.watch-page main { max-width: 1040px; margin: 0 auto; padding: 28px 24px 64px; }
+.watch-crumb { color: var(--muted); font-size: 14px; font-weight: 800; letter-spacing: 1px; text-decoration: none; margin-left: 18px; }
+.watch-crumb:hover { color: var(--yellow); }
+.watch-status { color: var(--muted); font-size: 15px; font-weight: 600; padding: 60px 0; text-align: center; }
+.watch-title { font-size: 30px; font-weight: 900; letter-spacing: 2px; margin-bottom: 26px; }
+
+.lang-switch { display: flex; margin-left: auto; border: 2px solid var(--line); }
+.lang-btn {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.lang-btn + .lang-btn { border-left: 2px solid var(--line); }
+.lang-btn.on { background: var(--yellow); color: #000; }
+.lang-btn:not(.on):hover { color: var(--yellow); }
+
+/* ---- 劇的列表 ---- */
+.row-title { font-size: 16px; font-weight: 900; letter-spacing: 2px; color: var(--muted); margin-bottom: 12px; }
+.show-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.show-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 300px;
+  padding: 20px 18px;
+  background: linear-gradient(160deg, #1c1c1c 0%, #101010 55%, #000 100%);
+  border: 2px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.show-card:hover { border-color: var(--yellow); transform: translateY(-3px); }
+.show-card-season { color: var(--yellow); font-size: 13px; font-weight: 900; letter-spacing: 2px; margin-bottom: 8px; }
+.show-card-title { font-size: 26px; font-weight: 900; line-height: 1.15; }
+.show-card-sub { color: var(--muted); font-size: 14px; font-weight: 700; margin-top: 6px; }
+.show-card-meta { color: var(--muted); font-size: 13px; font-weight: 700; margin-top: 14px; }
+
+/* ---- 一季 ---- */
+.season-hero { padding: 26px 0 30px; border-bottom: 2px solid var(--line); }
+.season-kicker { color: var(--yellow); font-size: 14px; font-weight: 900; letter-spacing: 3px; }
+.season-title { font-size: clamp(34px, 6vw, 56px); font-weight: 900; line-height: 1.08; margin-top: 8px; }
+.season-title-sub { color: var(--muted); font-size: 18px; font-weight: 800; margin-top: 8px; }
+.season-meta { color: var(--muted); font-size: 14px; font-weight: 700; margin-top: 14px; }
+.season-intro { max-width: 760px; font-size: 15px; font-weight: 500; line-height: 1.75; margin-top: 16px; }
+.season-intro.sub { color: var(--muted); margin-top: 10px; }
+.season-search { display: inline-block; margin-top: 22px; text-decoration: none; }
+
+.ep-list { margin-top: 8px; }
+.ep-row { display: flex; gap: 22px; padding: 26px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 80px; }
+.ep-row:target .ep-number { color: var(--yellow); }
+.ep-number {
+  flex: 0 0 64px;
+  color: #3a3a3a;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: right;
+}
+.ep-row:hover .ep-number { color: var(--yellow); }
+.ep-body { flex: 1; min-width: 0; }
+.ep-title { font-size: 20px; font-weight: 900; line-height: 1.3; }
+.ep-title-sub { color: var(--muted); font-size: 14px; font-weight: 700; margin-top: 4px; }
+.ep-meta { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: 1px; margin-top: 8px; }
+.ep-summary { margin-top: 12px; }
+.ep-summary p {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.75;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.ep-summary-sub { color: var(--muted); margin-top: 10px; }
+.ep-summary.open p { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
+.ep-toggle {
+  background: transparent;
+  border: 0;
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 0 0;
+  cursor: pointer;
+}
+.ep-toggle:hover { text-decoration: underline; }
+
+.watch-source { color: var(--muted); font-size: 12px; font-weight: 600; line-height: 1.7; margin-top: 30px; }
+.watch-source a { color: var(--muted); }
+.watch-source a:hover { color: var(--yellow); }
+
+.watch-link {
+  display: inline-block;
+  margin-top: 22px;
+  color: var(--yellow);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-decoration: none;
+  border-bottom: 2px solid var(--yellow);
+  padding-bottom: 2px;
+}
+.watch-link:hover { color: #fff; border-color: #fff; }
+
+@media (max-width: 640px) {
+  .watch-page main { padding: 18px 16px 48px; }
+  .watch-crumb { display: none; }
+  .ep-row { gap: 12px; }
+  .ep-number { flex-basis: 36px; font-size: 30px; }
+  .ep-title { font-size: 18px; }
+}
+
+/* ---- 封面畫面(來自我們自己的片段;沒有就維持純文字版面) ---- */
+.show-card.has-art {
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.94) 100%), var(--art);
+  background-size: cover;
+  background-position: center;
+}
+.season-hero.has-art {
+  position: relative;
+  margin: 0 -24px;
+  padding: 150px 24px 34px;
+  background-image:
+    linear-gradient(90deg, rgba(13, 13, 13, 0.96) 0%, rgba(13, 13, 13, 0.72) 48%, rgba(13, 13, 13, 0.25) 100%),
+    linear-gradient(180deg, rgba(13, 13, 13, 0) 40%, rgba(13, 13, 13, 1) 100%),
+    var(--art);
+  background-size: cover;
+  background-position: center 20%;
+}
+@media (max-width: 640px) {
+  .season-hero.has-art { margin: 0 -16px; padding: 110px 16px 26px; }
+}

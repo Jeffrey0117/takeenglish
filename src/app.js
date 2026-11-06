@@ -6,6 +6,13 @@ const { createPlans } = require('./plans')
 const { createPaygate } = require('./paygate')
 const { mountMediaRoutes } = require('./media-routes')
 const { mountMemberRoutes } = require('./member-routes')
+const { createSharePage } = require('./share-page')
+const { createShowLibrary } = require('./shows')
+const { createNewsletter } = require('./newsletter')
+const { createShowArtwork } = require('./show-artwork')
+
+const PUBLIC_DIR = path.join(__dirname, '..', 'public')
+const SHOW_ID_PATTERN = /^[a-z0-9-]{1,80}$/
 
 const LANG_PATTERN = /^[a-z]{2,3}$/
 // 播放網址的有效時間:夠一個人開著頁面慢慢看,過了就要重新搜尋
@@ -15,6 +22,20 @@ const VIDEO_TTL_MS = 3 * 60 * 60_000
 function toNumber(value) {
   const number = Number(value)
   return Number.isFinite(number) ? number : 0
+}
+
+// LetMeUse webhook 的內容:{ event, payload: { userId, email, displayName }, ... }
+// 事件名稱要從內容讀:簽章只保護內容,標頭上的事件名稱誰都能改
+// (不然拿一份簽過章的登入通知、把標頭改成「註冊」重送,就能觸發訂閱)。
+function registrationPayload(rawBody) {
+  try {
+    const { event, payload } = JSON.parse(Buffer.from(rawBody).toString('utf8'))
+    if (event !== 'user.registered') return null
+    if (!payload || typeof payload.email !== 'string') return null
+    return { email: payload.email, name: payload.displayName }
+  } catch {
+    return null
+  }
 }
 
 // Express 4 不會接 async handler 丟出來的錯,包一層交給錯誤處理
@@ -43,29 +64,59 @@ function createApp({
   paygate = createPaygate(),
   publicUrl = '',
   strictPlayback = false,
+  shows = createShowLibrary({ dir: path.join(__dirname, '..', 'data', 'shows') }),
+  newsletter = createNewsletter(),
   letmeuse = {}
 }) {
   if (!tokens) throw new Error('createApp needs media tokens')
 
   const app = express()
   app.disable('x-powered-by')
-  app.use(express.static(path.join(__dirname, '..', 'public')))
+  wrapAsync(app)
 
   const limiter = createRateLimiter({ windowMs: 60_000 })
   const clientIp = createRateLimiter.clientIp
 
+  // 分享預覽要用的圖:這句片語的第一個片段(訪客也看得到的那一個)
+  const sharePage = createSharePage({
+    indexPath: path.join(PUBLIC_DIR, 'index.html'),
+    publicUrl,
+    lookupImage: async (phrase) => {
+      const data = await clipcafe.search({ q: phrase, size: 1, from: 0, slop: 0 })
+      const first = (data.results || [])[0]
+      return first && first.slug ? `/og/${tokens.seal('id', first.slug)}.jpg` : null
+    }
+  })
+
+  // 帶片語的首頁(/?q=…)由這裡送出,<head> 換成那句片語的預覽;其他照常走靜態檔。
+  // 要排在 express.static 前面,不然首頁會先被靜態檔接走。
+  app.get('/', async (req, res, next) => {
+    if (req.query.q === undefined) return next()
+    const html = limiter.check(`share:${clientIp(req)}`, 60).allowed ? await sharePage.render(req.query.q) : null
+    if (!html) return next()
+    res.set('Cache-Control', 'public, max-age=0')
+    return res.type('html').send(html)
+  })
+
+  app.get('/watch', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'watch.html')))
+
+  app.use(express.static(PUBLIC_DIR))
+
   // webhook 要驗 raw body 的 HMAC,必須排在 json parser 之前
   app.post('/api/webhooks/letmeuse', express.raw({ type: '*/*' }), (req, res) => {
     const signature = req.get('X-LetMeUse-Signature')
-    if (!auth.verifyWebhookSignature(req.body, signature)) {
+    // 沒有內容的請求 req.body 不是 Buffer,直接當簽章不對
+    if (!Buffer.isBuffer(req.body) || !auth.verifyWebhookSignature(req.body, signature)) {
       return res.status(401).json({ success: false, error: 'invalid signature' })
     }
     const event = req.get('X-LetMeUse-Event') || 'unknown'
+    // 新會員註冊 → 同步到電子報名單(不等它,webhook 要馬上回)
+    const registered = registrationPayload(req.body)
+    if (registered) newsletter.subscribe(registered).catch(() => {})
     process.stdout.write(`[letmeuse-webhook] ${event}\n`)
     res.json({ received: true })
   })
 
-  wrapAsync(app)
   mountMediaRoutes(app, { clipcafe, tokens, limiter, clientIp, strictPlayback })
 
   app.use(express.json({ limit: '100kb' }))
@@ -123,12 +174,44 @@ function createApp({
         },
         freeLimit,
         tiers: plans.summary(),
+        // 註冊會同步到電子報名單時,前端要在登入按鈕旁邊講清楚
+        newsletter: newsletter.enabled,
         billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
       }
     })
   })
 
   mountMemberRoutes(app, { viewer, plans, paygate, tokens, limiter, publicUrl })
+
+  // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
+  const artwork = createShowArtwork({ clipcafe, tokens })
+
+  // 封面還沒找到的回應只快取一下下,免得「沒圖」的版本被瀏覽器留五分鐘
+  function showCache(res, complete) {
+    res.set('Cache-Control', complete ? 'public, max-age=300' : 'public, max-age=20')
+  }
+
+  app.get('/api/shows', async (req, res) => {
+    const list = await Promise.all(
+      shows.list().map(async (show) => ({
+        ...show,
+        seasons: await Promise.all(
+          show.seasons.map(async (season) => ({ ...season, artwork: await artwork.get(show, season.season) }))
+        )
+      }))
+    )
+    showCache(res, list.every((show) => show.seasons.every((season) => season.artwork)))
+    res.json({ success: true, data: { shows: list } })
+  })
+
+  app.get('/api/shows/:id/seasons/:season', async (req, res) => {
+    const number = Number.parseInt(req.params.season, 10)
+    const season = SHOW_ID_PATTERN.test(req.params.id) && Number.isInteger(number) ? shows.season(req.params.id, number) : null
+    if (!season) return res.status(404).json({ success: false, error: 'season not found' })
+    const art = await artwork.get(season.show, number)
+    showCache(res, Boolean(art))
+    return res.json({ success: true, data: { ...season, artwork: art } })
+  })
 
   app.get('/api/search', async (req, res) => {
     const { params, error } = parseSearchParams(req.query)

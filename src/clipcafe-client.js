@@ -35,8 +35,10 @@ function createClipcafeClient({ baseUrl, apiKey = '', fetchImpl = globalThis.fet
   }
 
   // 回 { status, body }:只有 200 才有 body(jpeg Buffer),其他狀態由呼叫端決定怎麼回
-  async function thumb(slug) {
-    const url = new URL(`/api/thumb/${encodeURIComponent(slug)}`, baseUrl)
+  // kind: 'thumb' = 卡片封面小圖;'og' = 分享預覽用的 1200x630 大圖
+  async function thumb(slug, kind = 'thumb') {
+    const endpoint = kind === 'og' ? 'og' : 'thumb'
+    const url = new URL(`/api/${endpoint}/${encodeURIComponent(slug)}`, baseUrl)
     const res = await fetchImpl(url, {
       headers: headers(),
       signal: AbortSignal.timeout(THUMB_TIMEOUT_MS)

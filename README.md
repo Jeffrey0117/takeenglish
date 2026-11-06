@@ -91,6 +91,26 @@ npm test
 | PRO_PLAN_ID | PayGate 上的方案代號,預設 `takeenglish:pro:monthly` |
 | MEMBER_LIMIT | 免費會員每次搜尋筆數,預設 10;設 0 = 不限 |
 
+## 看劇學習區(/watch)
+
+- 劇 → 季 → 每一集的標題與劇情介紹,可切中文 / English / 雙語
+- 資料是離線匯入的:`node scripts/import-wiki-season.js <show-id> <季> "<英文維基頁>" "<中文維基頁>" "<英文劇名>" "<中文劇名>"`,
+  產生 `data/shows/<show-id>/season-<季>.json`,commit 後部署就會出現。匯入邏輯在 `src/wiki-import.js`
+- 內容來自 Wikipedia(CC BY-SA 4.0),頁尾有來源連結與授權標示,不能拿掉
+- 封面不用維基上的海報(那是有版權限制的宣傳圖),改用我們自己片段的畫面(`src/show-artwork.js`),找不到就是純文字版面
+- 頁面文字集中在 `public/watch.js` 的 `TEXT`
+
+## 分享預覽
+
+- `/?q=break+a+leg` 由伺服器改寫 `<head>`(`src/share-page.js`):標題是那句片語,預覽圖是那句的第一個片段(`/og/{id}.jpg`,1200x630)
+- 搜不到片段或片源太慢時用全站預設圖 `og.png`
+
+## 電子報同步
+
+- LetMeUse 的 `user.registered` webhook 進來時,把新會員的 email 送到電子報的訂閱端點(`src/newsletter.js`)
+- 設 `NEWSLETTER_SUBSCRIBE_URL`(完整網址)與 `NEWSLETTER_SITE_ID` 才啟用;啟用時登入按鈕旁會顯示告知文字
+- 測試用網域(example.com 等)不會送出
+
 ## 之後再說
 
 - 部署(CloudPipe)時 clipcafe-api 要一起上

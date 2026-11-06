@@ -114,12 +114,13 @@ function mountMediaRoutes(app, { clipcafe, tokens, limiter, clientIp, strictPlay
     }
   }
 
-  app.get('/thumb/:id.jpg', async (req, res) => {
+  // 卡片封面(/thumb)和分享預覽大圖(/og)是同一套流程,只差尺寸
+  const imageRoute = (kind, bucket, max) => async (req, res) => {
     const slug = TOKEN_PATTERN.test(req.params.id) ? tokens.open('id', req.params.id) : null
     if (!slug) return fail(res, 404, 'thumbnail unavailable')
-    if (limited(req, res, 'thumb', 600)) return
+    if (limited(req, res, bucket, max)) return
     try {
-      const upstream = await clipcafe.thumb(slug)
+      const upstream = await clipcafe.thumb(slug, kind)
       if (upstream.status === 200) {
         res.set('Cache-Control', THUMB_CACHE_CONTROL)
         return res.type('jpeg').send(upstream.body)
@@ -130,7 +131,10 @@ function mountMediaRoutes(app, { clipcafe, tokens, limiter, clientIp, strictPlay
       process.stderr.write(`[thumb] ${err.message}\n`)
       return fail(res, 502, 'thumbnail unavailable')
     }
-  })
+  }
+
+  app.get('/thumb/:id.jpg', imageRoute('thumb', 'thumb', 600))
+  app.get('/og/:id.jpg', imageRoute('og', 'og', 120))
 
   app.get('/sub/:id/:lang.vtt', async (req, res) => {
     const { id, lang } = req.params

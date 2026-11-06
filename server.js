@@ -5,6 +5,7 @@ loadEnv(__dirname)
 const crypto = require('node:crypto')
 const { createMediaTokens } = require('./src/media-tokens')
 const { createPaygate } = require('./src/paygate')
+const { createNewsletter } = require('./src/newsletter')
 const { createApp } = require('./src/app')
 const { createClipcafeClient } = require('./src/clipcafe-client')
 const { createAuth } = require('./src/auth')
@@ -29,6 +30,10 @@ const app = createApp({
   publicUrl: (process.env.PUBLIC_URL || '').replace(/[/]+$/, ''),
   memberLimit: memberLimit(),
   strictPlayback: process.env.STRICT_PLAYBACK === '1',
+  newsletter: createNewsletter({
+    url: process.env.NEWSLETTER_SUBSCRIBE_URL,
+    siteId: process.env.NEWSLETTER_SITE_ID
+  }),
   auth: createAuth({
     appId: process.env.LETMEUSE_APP_ID,
     secret: process.env.LETMEUSE_APP_SECRET,

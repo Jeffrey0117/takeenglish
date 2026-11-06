@@ -1,0 +1,537 @@
+{
+  "show": {
+    "id": "brooklyn-nine-nine",
+    "title": {
+      "en": "Brooklyn Nine-Nine",
+      "zh": "荒唐分局"
+    }
+  },
+  "season": 5,
+  "intro": {
+    "en": "The fifth season of the television sitcom Brooklyn Nine-Nine premiered September 26, 2017 on Fox. This was the final season to air on Fox, as the series was canceled on May 10, 2018, before NBC picked it up for a sixth season the following day.",
+    "zh": "《荒唐分局》第五季由丹·戈爾與邁克爾·舒爾共同開創，自2017年9月26日至2018年5月20日間於FOX首播。故事以紐約布魯克林區虛構的99分局為背景，描繪分局警探辦案過程的日常笑料。"
+  },
+  "episodes": [
+    {
+      "number": 1,
+      "overall": 91,
+      "code": "501",
+      "airDate": "2017-09-26",
+      "title": {
+        "en": "The Big House: Part 1",
+        "zh": "監獄生活Pt. 1",
+        "zhNetflix": "監獄（一）"
+      },
+      "summary": {
+        "en": "Jake and Rosa have been in prison for a couple of months, with Jake having to deal with his amiable mass-murdering cannibal cellmate, and Rosa doing whatever it takes to establish herself as someone not to be messed with. Jake ends up being put in the general population after smuggling \"street soups\" to a feared gang led by Romero, and Holt and Terry struggle to fill a very long list of requests for help by Rosa after she realizes they're not going to stop trying to help her. Amy and Boyle badly miss Jake, and Gina is on maternity leave.",
+        "zh": "在傑克期待已久的探監日被迫中斷後，他決定聽取好獄友凱勒布的建議，向監獄大老雷米洛交易以取得手機。霍爾特與泰瑞過度關心服刑的蘿莎，於是蘿莎交付了兩人許多待辦事項，這讓霍爾特與泰瑞有些吃不消。格蘭維爾典獄長發現傑克偷渡監獄外的產品，因此取消傑克與凱勒布的保護監禁資格，將兩人送回普通監獄，這使因警察身分而備受生命威脅的傑克，得設法加入監獄幫派好獲得保護。蘿莎不斷地提出更多的代辦清單，這讓霍爾特與泰瑞終於受不了而拒絕，蘿莎這才坦承自己尚在心理調適，因此非常需要兩人以平常心的態度待她，而非特別禮遇或過多的關照。傑克打算投靠最有勢力的雷米洛，然而雷米洛的條件卻是要傑克了結某名獄警，但在傑克的三寸不爛之舌下，雷米洛才勉強答應改為讓該獄警捲地舖走人。傑克計畫惹毛獄警以遭爆打，並暗中拍下影片好告發獄警，然而不擅長使用智慧型手機的凱勒布卻一直壞事，格蘭維爾典獄長更意外發現手機的存在。為了剷除監獄走私大宗的雷米洛，格蘭維爾典獄長決定和傑克交換條件，渴望與艾美通話的傑克，只好答應成為格蘭維爾典獄長的間諜。"
+      },
+      "directedBy": {
+        "en": "Tristram Shapeero",
+        "zh": "崔斯特姆·薛皮洛"
+      },
+      "writtenBy": {
+        "en": "Luke Del Tredici",
+        "zh": "盧克·戴爾·翠帝夏"
+      }
+    },
+    {
+      "number": 2,
+      "overall": 92,
+      "code": "502",
+      "airDate": "2017-10-03",
+      "title": {
+        "en": "The Big House: Part 2",
+        "zh": "監獄生活Pt. 2",
+        "zhNetflix": "監獄（二）"
+      },
+      "summary": {
+        "en": "Jake undertakes a dangerous undercover mission at the warden's behest, but it looks like he'll end up getting killed by Romero, no matter how it turns out. The squad tries to figure out how to prove Lt. Hawkins was behind the robberies she framed Jake and Rosa for. An operation to hack into her phone is one option, but a more viable and much more dangerous one involves a Hawkins-loathing mob boss named Seamus Murphy, who will give Amy the information to clear Jake and Rosa if she will \"do a favor for me\" in return. When the operation fails, Holt secretly obtains the information from Murphy, resulting in Jake and Rosa's freedom at the cost of a favor Holt will owe Murphy in the future.",
+        "zh": "格蘭維爾典獄長逼迫傑克冒著生命危險摸清雷米洛的販毒管道，否則他將洩露傑克是間諜的事實，但雷米洛又不會這麼輕易地將販毒細節透露給傑克，這使傑克陷入兩難。惡名昭彰的犯罪集團頭目謝默斯私下和艾美接觸，表明自己有能逮到霍金斯的關鍵證據，但99分局便得欠上他一條人情債。傑克決定發揮警探的辦案能力，在凱勒布的協助下，他發現雷米洛將毒品混入肥皂，並在廁所裡製毒，然而因傑克洗了毒品肥皂，導致他產生吸毒症況，這讓雷米洛開始信任他而脫口說出毒品肥皂一事，使得傑克原先假裝不知情而得以逃脫間諜嫌疑的計劃破滅。礙於謝默斯的惡行，99分局同仁一致認同不該和謝默斯合作，於是他們決定引誘霍金斯前去監獄探監蘿莎，好藉機潛入其轎車安裝手機監視系統，但此計劃最終還是因被霍金斯識破而以失敗收場。雷米洛在發現毒品肥皂被沒收後，他打算向傑克報復，結果凱勒布卻替傑克擋了一刀，與此同時，霍爾特藉由養豬知識，洞悉霍金斯將走私鑽石藏在豬隻的肚裡，這成功定罪霍金斯，並洗刷傑克和蘿莎的冤屈，而傑克也因此逃過雷米洛的後續報復行動。最後，在99分局同仁歡慶傑克與蘿莎歸隊之際，霍爾特接到謝默斯的電話，由此揭露原來養豬知識此破案關鍵是來自謝默斯。"
+      },
+      "directedBy": {
+        "en": "Michael McDonald",
+        "zh": "邁克爾·麥當勞"
+      },
+      "writtenBy": {
+        "en": "Justin Noble",
+        "zh": "賈斯汀·諾寶"
+      }
+    },
+    {
+      "number": 3,
+      "overall": 93,
+      "code": "503",
+      "airDate": "2017-10-10",
+      "title": {
+        "en": "Kicks",
+        "zh": "獄後",
+        "zhNetflix": "球鞋"
+      },
+      "summary": {
+        "en": "Jake must pass an official evaluation performed by Holt in order to get back in the field after his incarceration. When Jake starts doubting his choices after the prime suspect claims innocence, he sees it as a weakness, but Holt sees is as a strength. Meanwhile, Rosa gets Amy and Terry's assistance to discover if Pimento is cheating on her. Despite being proven innocent, Rosa decides to break up with him after realizing she would've felt relieved had he been caught.",
+        "zh": "懷念辦案而受不了只能執內勤的傑克，打算進行市警察訓練局的評估，好得以重新執外勤，但若傑克未能通過，則可能遭受停職。蘿莎懷疑阿德利安劈腿，而曾在愛情裡受過傷的泰瑞支持蘿莎跟監阿德利安，結果阿德利安果真和一名女性約會，這讓蘿莎怒不可遏。傑克和查爾斯聯手偵辦運動鞋失竊案，就在傑克洞悉嫌犯犯罪手法並逮到嫌疑犯後，他卻對自己產生質疑而放走嫌疑犯，經過重新的調查，證實其原先的辦案推論是正確的，但放走嫌犯此舉，卻恐讓傑克無法通過霍爾特的評估。蘿莎決定向阿德利安攤牌，而阿德利安坦承自己正在向女教師學習西班牙語，欲討蘿莎父親的歡心，這讓蘿莎驚覺自己錯怪了阿德利安。傑克坦承在經歷冤獄事件後，讓他開始擔心自己冤枉好人而失去判斷力，但原本擔心傑克會因此草率的霍爾特，認為傑克變得謹慎而通過了其評估，不過傑克仍決定正視自己的創傷，而選擇繼續執內勤。蘿莎坦承在她懷疑阿德利安劈腿而決定分手時，其內心竟感到如釋重負，不得不正視內心感受的她，便決定向阿德利安提出分手，即便這讓阿德利安心撕欲裂。"
+      },
+      "directedBy": {
+        "en": "Eric Appel",
+        "zh": "艾瑞克·艾普爾"
+      },
+      "writtenBy": {
+        "en": "Andrew Guest",
+        "zh": "安德魯·蓋斯特"
+      }
+    },
+    {
+      "number": 4,
+      "overall": 94,
+      "code": "504",
+      "airDate": "2017-10-17",
+      "title": {
+        "en": "HalloVeen",
+        "zh": "萬聖節驚喜",
+        "zhNetflix": "萬聖節爭奪戰"
+      },
+      "summary": {
+        "en": "On the fifth annual Halloween heist, all members of the squad try to capture the champion cummerbund. Charles, Rosa, and Terry team up to form \"The Tramps\", as none of them have won the heist yet. Amy figures out Jake's plan and finds the cummerbund; but it is revealed that Jake changed the inscription on the belt from \"amazing human/genius\" to \"Amy Santiago, will you marry me?\" Amy accepts Jake's proposal and the two become engaged. While he is happy for them, Captain Holt is slightly upset by the fact that no one technically won the heist, since Jake changed the belt.",
+        "zh": "萬聖節到來，大家皆已蓄勢待發，打算奪下今年的搶奪戰冠軍寶座。傑克先是和查爾斯合作，並再度找來比爾協助他們混淆視聽，以搶先取得今年的爭奪物－腰帶，殊不知，查爾斯卻在背地裡集結過往未曾奪下勝利的蘿莎和泰瑞，選擇背叛傑克。霍爾特洞悉查爾斯的計劃，於是利用切達暗中叼走腰帶，結果卻被艾美中途攔截，並進行了「偷物換狗」的行動，隨後神不知鬼不覺地將腰帶置入自己的保險箱中。好不容易掙脫束縛的傑克，找來許多人和自己一同扮成侍女，以混入辦公室，並由比爾成功掉包了艾美的保險箱。就在霍爾特被傑克誤導後，艾美察覺腰帶真正的所在之處，正當艾美終於取得腰帶並準備迎接勝利時，卻發現腰帶上竟刻著求婚詞，而傑克也在此時向艾美屈膝求婚。"
+      },
+      "directedBy": {
+        "en": "Jamie Babbit",
+        "zh": "潔米·巴比特"
+      },
+      "writtenBy": {
+        "en": "Dan Goor",
+        "zh": "丹·戈爾"
+      }
+    },
+    {
+      "number": 5,
+      "overall": 95,
+      "code": "505",
+      "airDate": "2017-11-07",
+      "title": {
+        "en": "Bad Beat",
+        "zh": "成癮",
+        "zhNetflix": "爆冷門"
+      },
+      "summary": {
+        "en": "Jake and Terry propose to join an underground gambling ring to catch a criminal. However, in the process, Captain Holt relapses into his old gambling addiction. Charles is planning a new food truck venture and ropes in Amy as an investor, only to later tell her that the truck he bought was the scene of a notorious murder. Rosa accepts Hitchcock's and Scully's challenge when they say she can't sit all day like they do.",
+        "zh": "傑克與泰瑞為了追緝軍火商罪犯丹尼爾·維爾達諾，而決定臥底進入賭場，然而擁有賭癮的霍爾特卻在指導傑克的同時，癮性復發。如願成為傑克伴郎的查爾斯，和艾美展開餐車創業計劃，結果他們的餐車卻被破壞，亦未能獲得保險理賠。蘿莎決定和希區考克及史考利較量，比賽看誰最能長期坐在椅子上，雖然這看似輕鬆，但蘿莎隨即將發覺此非易事。霍爾特越來越沉迷於賭博，這令傑克與泰瑞不得不讓霍爾特退出臥底行動，但此舉依舊未能阻止霍爾特，霍爾特更直接現身賭場，並堅稱自己只是沉迷於數學的計算。艾美發現自己不該只著重於餐車的理賠，反而應著眼在查爾斯夢想的實踐，並在和查爾斯約法三章後，兩人持續向創業之路邁進。蘿莎在和希區考克及史考利競爭的同時，培養出革命的情感，也因此更加尊重兩人。霍爾特的警察身分被丹尼爾的手下識破，在傑克發覺霍爾特說謊的小破綻後，他與泰瑞及時拯救了遭丹尼爾挾持的霍爾特，而霍爾特也對自己沉迷賭博一事感到羞愧，在感謝傑克與泰瑞的同時，也決定參加互助會。"
+      },
+      "directedBy": {
+        "en": "Kat Coiro",
+        "zh": "凱特·寇伊若"
+      },
+      "writtenBy": {
+        "en": "Carol Kolb",
+        "zh": "卡蘿·柯爾布"
+      }
+    },
+    {
+      "number": 6,
+      "overall": 96,
+      "code": "506",
+      "airDate": "2017-11-14",
+      "title": {
+        "en": "The Venue",
+        "zh": "婚禮場地",
+        "zhNetflix": "結婚場地"
+      },
+      "summary": {
+        "en": "Jake and Amy find a mansion that makes a perfect venue for their wedding, only to have it snatched at the last second by The Vulture, who is also planning to get married on the same day to a woman named Jean Munhroe. After finding out that his fiancé is a kind charity worker and that Vulture will likely cheat on her, they debate over whether they want the venue or to save Jean from her marriage. Charles and Rosa track down and rescue Sergeant Peanut Butter, whom Charles still envies for stealing his thunder when he received his Medal of Valor. Much to Charles' dismay, Peanut Butter is given the credit for the rescue despite Charles saving his life. Captain Holt tries to convince Terry to be less image-conscious after Terry begins to prepare a party for a cop he accidentally offended.",
+        "zh": "傑克與艾美好不容易找到一間別緻的豪宅作為婚禮場地，就在他們打點好婚禮的其他瑣事後，「禿鷹」潘布洛克卻突然殺出，搶先訂走了豪宅，這讓措手不及的傑克與艾美，面臨完美婚禮泡湯的危機。傑克與艾美為了搶回婚禮場地，決定前去找禿鷹的未婚妻琴恩·芒洛談判，結果他們卻發現琴恩竟然是個慈善家，這不僅令他們難以啟齒，更意外成為了機構捐款人。有著被他人喜愛執著的泰瑞，與一名基層女警員泰芮產生嫌隙，偏執的他，決心要討好泰芮，這令無法理解的霍爾特不禁指點他。曾經在獲頒勳章的典禮上，搶走查爾斯光彩的花生醬警長失蹤了，對牠心生妒忌的查爾斯，在拯救被綁架的花生醬馬警時，卻被媒體捕捉到出糗畫面，不瞭實情的記者更大力讚揚馬警，這讓查爾斯相當失落。不信任禿鷹已改過遷善的傑克與艾美，意外發現禿鷹仍在使用交友軟體，在他們以此威脅禿鷹後，卻仍因良心過意不去而向琴恩坦承一切，這不僅毀了禿鷹與琴恩的婚事，他們亦未從中搶回婚禮場地。最後，泰瑞在經過霍爾特的勸戒，試著放下與泰芮的隔閡，而查爾斯則在蘿莎的幫助下，扳回了顏面。"
+      },
+      "directedBy": {
+        "en": "Cortney Carrillo",
+        "zh": "蔻特妮·卡瑞歐"
+      },
+      "writtenBy": {
+        "en": "Matt Lawton",
+        "zh": "馬特·勞頓"
+      }
+    },
+    {
+      "number": 7,
+      "overall": 97,
+      "code": "507",
+      "airDate": "2017-11-21",
+      "title": {
+        "en": "Two Turkeys",
+        "zh": "兩隻火雞",
+        "zhNetflix": ""
+      },
+      "summary": {
+        "en": "Jake and Amy attempt to get their parents to bond over Thanksgiving dinner, but their first holiday together as a family does not go well. However, an unexpected injury causes both sets of parents to reexamine their feelings towards each other, and fulfill Jake’s wish of a big family Thanksgiving. Elsewhere, Holt and husband Kevin’s Thanksgiving pie goes missing, and Holt suspects Rosa, Boyle, or Terry may have taken the pie, as they each tell lies about their Thanksgiving plan. After interrogating them with no luck, Holt enlists the help of Hitchcock and Scully in order to uncover the culprit and find the pie, only to be shocked at his discovery later.",
+        "zh": "感恩節到來，普拉塔與聖蒂亞可兩家人將共進感恩節大餐，擔心雙方家長會因個性迥異而不合的傑克與艾美，設想了緩和氣氛的後備計畫。霍爾特買了個自己喜歡的西式餡餅，打算帶去凱文家與其父母分享，結果他卻發現餡餅不翼而飛，懷疑有人竊走餡餅的他，便對99分局同仁展開調查。傑克與艾美發現沒人能抗拒美酒的誘惑，因此決定藉酒來趨緩雙方越趨緊張的氛圍，起初雙方家長如兩人所願融成一片，但酒精的發酵，卻讓維多與羅傑在各事物上展開較勁。維多與羅傑的競爭也引發傑克與艾美的爭執，當羅傑在和維多比賽切火雞時，卻不小心切斷了自己的大拇指，這嚇壞了所有人。霍爾特發現泰瑞、蘿莎與查爾斯都說了謊，他們各自的感恩節計畫都有所隱情，但餡餅皆不是他們偷走的，而是不喜歡該餡餅又不想傷害他的凱文。雖然維多與羅傑較勁意味濃厚，但在患難見真情下，雙方相擁棄前嫌，這令傑克與艾美相當感動。"
+      },
+      "directedBy": {
+        "en": "Alex Reid",
+        "zh": "艾力克斯·里德"
+      },
+      "writtenBy": {
+        "en": "David Phillips",
+        "zh": "大衛·菲利浦斯"
+      }
+    },
+    {
+      "number": 8,
+      "overall": 98,
+      "code": "508",
+      "airDate": "2017-11-28",
+      "title": {
+        "en": "Return to Skyfire",
+        "zh": "偶像回歸",
+        "zhNetflix": "回歸《天火》"
+      },
+      "summary": {
+        "en": "Skyfire author DC Parlov returns to the precinct after the latest manuscript for his upcoming book was stolen. Jake and Terry who have bonded over their love for Parlov’s book, go to a convention along with Rosa to investigate and find out that Parlov's rival, Landon Lawson, also had his manuscript stolen. As the two authors accuse each other of stealing their work, Terry reveals to Jake that he's been writing a fantasy novel of his own. Jake encourages Terry to have Parlov look at it, only to find out that it's terrible. Back at the precinct, Holt, Amy, and Charles take a forensics course and things go south when their tactic to keep Charles' mouth shut fails.",
+        "zh": "《天火循環》作家D·C·帕洛夫再次遭到威脅，於是他請來泰瑞與傑克替他偵破案件。99分局將舉辦鑑識科學的課程，而計畫參加的霍爾特與艾美，卻擔心查爾斯的多話會影響課堂的教學品質。泰瑞與傑克懷疑作家勒索案是帕洛夫的仇敵勞森所為，結果他們卻發現勞森竟也遭受到金錢的勒索。霍爾特與艾美決定拿查爾斯當石膏模型，來防止查爾斯說話，結果卻忘記事先塗抹潤滑液而犯下錯誤。在傑克鼓勵泰瑞對自己的創作有信心之餘，他發現帕洛夫對泰瑞釋出的善意，其實是為了掩蓋他與勞森為了書本銷售量而策劃的陰謀，而泰瑞也嗅出其中的端倪。霍爾特與艾美原本害怕因犯錯而無法領取證書，並有意藏匿被石膏困住的查爾斯，但在得知查爾斯為他們設想的心意後，他們決定接納查爾斯說話的權利，並勇於面對過錯。雖然泰瑞最終面臨文筆不佳與偶像崩毀的窘境，但傑克仍鼓勵他繼續創作，並從中學習。"
+      },
+      "directedBy": {
+        "en": "Linda Mendoza",
+        "zh": "琳達·曼陀莎"
+      },
+      "writtenBy": {
+        "en": "Neil Campbell",
+        "zh": "尼爾·坎貝爾"
+      }
+    },
+    {
+      "number": 9,
+      "overall": 99,
+      "code": "509",
+      "airDate": "2017-12-05",
+      "title": {
+        "en": "99",
+        "zh": "99分局萬歲！",
+        "zhNetflix": ""
+      },
+      "summary": {
+        "en": "While at a funeral in Los Angeles for their former police chief, Captain Holt finds out he is in the running to be commissioner. After experiencing many difficulties like missing their flight and having their RV explode, Jake and the squad must find a way to get from Los Angeles to New York in time for Holt's interview. Jake finds out that Holt was sabotaging the trip purposefully due to his compromise with Murphy, but the squad vows to find a way to solve Holt's issue and get him to the interview on time. During the trip, Amy tries to act less serious, Terry's upset about missing his first-class flight, and Charles discovers that Rosa is bisexual.",
+        "zh": "99分局同仁前往洛杉磯參加麥金利的喪禮，而霍爾特同時接獲面試紐約市警察局長的消息。艾美發現自己總是處於神經緊張的狀態，於是決定試著以隨興的態度處事，而波伊爾則在得知蘿莎已有新歡後，試圖挖掘內情。在返回紐約的路上，99分局同仁行經傑克最愛的電影《終極警探》中之福斯大樓 (洛杉磯)，於是一行人臨停參訪，結果卻被困在施工的樓層內。在他們好不容易脫困並抵達機場時，不僅未趕上原定班機，更因中西部風暴而面臨後續航班全遭取消的窘境。在租車公司以無車可借的情況下，99分局同仁開著一台老舊露營車展開公路旅途，結果車子卻在途中爆炸。99分局同仁輾轉投靠波伊爾居住在德州的表親家，面對霍爾特可能無法趕上面試的困境，視霍爾特如父親般存在並感激他的傑克，仍不願放棄最後一絲希望，但他隨後卻發現這趟旅程所遭遇的災難，其實都是霍爾特所設的局。99分局同仁在得知霍爾特為救出傑克與蘿莎而和墨菲交易後，霍爾特坦言深怕自己若真的當上局長，會讓墨菲變本加厲，但99分局同仁不願讓霍爾特為此犧牲，仍鼓勵他追逐夢想，而他們屆時會設法聯手對付墨菲。在艾美重回神經緊張狀態，清晰地規劃返程計畫後，霍爾特終於趕上位在紐約的面試，並成為正式候選人，而波伊爾意外得知蘿莎其實是名雙性戀者，並在好奇之餘，也給予了她支持。"
+      },
+      "directedBy": {
+        "en": "Payman Benz",
+        "zh": "佩曼·班茲"
+      },
+      "writtenBy": {
+        "en": "Andy Bobrow",
+        "zh": "安迪·巴布洛"
+      }
+    },
+    {
+      "number": 10,
+      "overall": 100,
+      "code": "510",
+      "airDate": "2017-12-12",
+      "title": {
+        "en": "Game Night",
+        "zh": "遊戲之夜",
+        "zhNetflix": ""
+      },
+      "summary": {
+        "en": "After Rosa reveals she is bisexual to her colleagues, she seeks Jake's help in telling the news to her parents during a dinner with them. Though she initially pretends to be dating Jake during dinner, she comes out and invites Jake to join her family for Game Night, where she finds out how much her parents are willing to accept the change. Meanwhile, the precinct turns to Gina for help when the Cyber Crimes division is using up all their bandwidth, resulting in slow internet. After Gina helps them, she reveals she plans on quitting the Nine-Nine to pursue a career in entrepreneurship. However, after being touched by Amy and Charles' good-byes, she decides to return to the Nine-Nine while continuing to work on her side business.",
+        "zh": "蘿莎在向99分局同仁出櫃後，她決定藉能言善道的傑克來向父母親出櫃。99分局的網路受到甫搬至樓下的網路犯罪組之影響，而霍爾特與泰瑞則和該單位負責人戴文溝通無效。蘿莎未事先通知便安排傑克陪同她與父母親用餐，並打算藉機讓傑克替她出櫃，但最後卻臨陣退縮，更順著誤會要傑克假扮自己的男友。99分局同仁決定向請產假的吉娜尋求幫助，以和網路犯罪組達成協議，但休假中的吉娜卻回絕了同事們的請求。在蘿莎看見父母察覺傑克和艾美之關係後的反應，發現父母寧願她當別人感情的第三者，也不願面對她可能是同性戀的事實，於是她便憤怒地向父母親坦承性向。網路犯罪組未領情99分局的示好，直到吉娜現身，並將她挖掘到戴文的糗事公諸於世，網路犯罪組才不得已滿足99分局的需求。正當蘿莎以為父母如往常般邀請她參加家庭遊戲之夜，代表他們已接受她的性向時，她才發現父母將她的真實性向視為一個過渡期，並認為她終將和男人結婚後，失望的她正式放棄與父母溝通。吉娜以開發副業為由，向99分局宣布自己的去意，但不捨的艾美與查爾斯試圖挽留她，而吉娜確實也在兩人動之以情下，選擇回歸99分局。蘿莎在受傑克的支持之餘，她的父親奧斯卡嘗試接納並了解她的性向，而身為LGBTQ一員的霍爾特，也感謝蘿莎的勇敢。"
+      },
+      "directedBy": {
+        "en": "Tristram Shapeero",
+        "zh": "崔斯特姆·薛皮洛"
+      },
+      "writtenBy": {
+        "en": "Justin Noble & Carly Hallam Tosh",
+        "zh": "賈斯汀·諾寶 卡莉·海拉姆·塔許"
+      }
+    },
+    {
+      "number": 11,
+      "overall": 101,
+      "code": "511",
+      "airDate": "2017-12-12",
+      "title": {
+        "en": "The Favor",
+        "zh": "要求",
+        "zhNetflix": "人情"
+      },
+      "summary": {
+        "en": "Seamus Murphy finally asks Holt for his favor: To request a permit for a block party that will cover up their next crime. Jake and Charles go undercover and befriend Seamus' dimwitted nephew, Kyle, to find out what the Murphys are planning and stop it. Amy and Rosa try to request a permit for the block party, but when they are rejected, they try to find holes in the bureaucratic system Amy's grown to adore. Terry tries to find Gina time and space to use her breast pump for her baby. After the Nine-Nine uncovers Seamus' plan, they manage to foil the planned robbery while ensuring Holt keeps up his end of the bargain. When they arrest Kyle to protect him from his uncle's wrath, Seamus finds out about the ruse and threatens Kevin's life.",
+        "zh": "謝默斯要求霍爾特通過他舉辦街區派對的申請，但霍爾特卻對此感到存疑而打算拒絕，不過99分局同仁卻不樂見霍爾特的職涯因此受到影響。為了滿足謝默斯的需求，同時阻礙墨菲家族的犯罪惡行，傑克與查爾斯刻意接近身為墨菲家族一員的凱爾，但凱爾的成事不足敗事有餘，令傑克與查爾斯相當頭痛。將規章奉為寶的艾美，發現條例存在漏洞，與此同時，泰瑞發現吉娜利用他的好意，瞞騙他翹班。在傑克與查爾斯成功和凱爾搭上線，並幫助他重回墨菲家族後，99分局成功藉凱爾監聽謝默斯，並在霍爾特和謝默斯交換條件的同時，暗中破壞墨菲家族的犯罪計畫。喪志的艾美在蘿莎的提振下，決定藉條例漏洞來對付漏洞，而吉娜則在謊言被揭穿後，向泰瑞道出身為職場媽媽的複雜情緒與難處。傑克在發現謝默斯因計畫失敗而懷疑凱爾，並打算對凱爾不利時，他決定藉公權力逮捕凱爾以保護他，但這卻讓謝默斯察覺99分局的計謀，並以凱文威脅霍爾特。"
+      },
+      "directedBy": {
+        "en": "Victor Nelli Jr.",
+        "zh": "小維多·內利"
+      },
+      "writtenBy": {
+        "en": "Aeysha Carr",
+        "zh": "艾莎·卡爾"
+      }
+    },
+    {
+      "number": 12,
+      "overall": 102,
+      "code": "512",
+      "airDate": "2018-03-18",
+      "title": {
+        "en": "Safe House",
+        "zh": "安全屋",
+        "zhNetflix": ""
+      },
+      "summary": {
+        "en": "Kevin and Jake are forced to stay in a safe house for two months to avoid getting caught by Seamus Murphy and his men, with heavy restrictions placed by Holt. Jake begins to worry when Holt's over-protectiveness starts to strain his and Kevin's marriage. The Nine-Nine try to track down Murphy. Rosa goes to a hair salon and is forced to make small talk and change her hair to get info out of Murphy's girlfriend. Amy, Terry, and Scully search through a room full of shredded documents to pin down Murphy's location.",
+        "zh": "99分局展開保護凱文的行動，受恩的傑克便自告奮勇，願和凱文一同入住安全屋。霍爾特在安全屋訂下許多規則，使得傑克與凱文被迫過著乏味又受限制的生活。正當組織犯罪組展開拘捕謝默斯的行動時，卻發現謝默斯早已潛逃，這使得傑克與凱文回歸自由的希望破滅。凱文前往圖書館的請求遭拒，導致他與霍爾特產生爭執，甚至嚴重到鬧離婚的地步。蘿莎臥底成謝默斯女友妮基的美髮客人，好藉機套出謝默斯的藏匿處，與此同時，史考利協助艾美與泰瑞拼湊謝默斯成堆的碎紙，好尋得蛛絲馬跡。傑克為了挽救霍爾特和凱文的婚姻，決定私自帶著凱文外出，結果卻被霍爾特發現，甚至遭人尾隨，更導致霍爾特被持槍挾持。傑克從分局同仁給予的資訊，追蹤到謝默斯的所在地，卻不小心遭逮，就在他與霍爾特即將遭遇不測時，凱文即時駕車衝撞、拯救了兩人，而謝默斯與其犯罪集團也因此被一網打盡。"
+      },
+      "directedBy": {
+        "en": "Nisha Ganatra",
+        "zh": "妮莎·嘉娜卓"
+      },
+      "writtenBy": {
+        "en": "Andy Gosche",
+        "zh": "安迪·戈許"
+      }
+    },
+    {
+      "number": 13,
+      "overall": 103,
+      "code": "513",
+      "airDate": "2018-03-25",
+      "title": {
+        "en": "The Negotiation",
+        "zh": "談判",
+        "zhNetflix": "談判專家"
+      },
+      "summary": {
+        "en": "Jake is requested to act as a negotiator for a hostage situation at a jewelry store, only to find out that it's a set-up from Doug Judy, who asks for his help to take down a dangerous criminal in order to rescue Judy's mother. Amy and Gina try to help Charles out with his new food truck, as the stress of his new business and perfectionist attitude seems to be getting to him. When a member of the Police Commissioner selection committee decides to interview Hitchcock about Holt's qualities, Holt and Terry train him to be less disgusting and more professional.",
+        "zh": "在一場珠寶搶劫人質案中，嫌犯特別指名由傑克擔任談判專家，當傑克與嫌犯會面時，才發現嫌犯竟是洗心革面的道格·朱迪。局長評選委員會委員到訪99分局，打算接觸霍爾特旗下的警探，以對霍爾特進行評分，這令慌張的霍爾特必須攜手泰瑞改造希區考克。道格聲稱自己是被惡名昭彰的毒梟以母親的性命做威脅，才逼不得已搶劫珠寶店，相信他的傑克，決定說服蘿莎參與他們引誘毒梟的計畫，並設法瞞過緊急服務組。波伊爾的餐車終於開張，艾美與吉娜決定助波伊爾一臂之力，結果披上廚師服的波伊爾卻變了一個人似地嚴厲且難相處。緊急服務組的丹尼斯發現傑克和道格欺瞞他們後，在試圖阻止傑克時，因為了升遷而加入傑克的計畫，雖然他們如願逮捕了毒梟，但道格卻帶著珠寶逃跑，這令又被擺了一道的傑克陷入事業危機。最後，道格看在和傑克的友情，決定歸還珠寶，而希區考克則在結束和委員交談過後，選擇從知性外貌回歸本性。"
+      },
+      "directedBy": {
+        "en": "Linda Mendoza",
+        "zh": "琳達·曼陀莎"
+      },
+      "writtenBy": {
+        "en": "Phil Augusta Jackson",
+        "zh": "菲爾·奧加斯塔·傑克森"
+      }
+    },
+    {
+      "number": 14,
+      "overall": 104,
+      "code": "516",
+      "airDate": "2018-04-01",
+      "title": {
+        "en": "The Box",
+        "zh": "偵訊室",
+        "zhNetflix": "徹夜審訊"
+      },
+      "summary": {
+        "en": "Jake and Holt spend the night interrogating dentist Phillip Davidson to determine if he murdered his partner. The task proves difficult, as Davidson appears to have a defense for all of their accusations and strategies, leaving Jake to take drastic measures.",
+        "zh": "傑克為審訊身為牙醫師的嫌疑犯菲利浦·大衛森而做好萬全準備，懷念警探審訊過程的霍爾特也取消了約會，加入他的審訊行動。傑克和霍爾特攜手應付思緒清晰的菲利浦，但菲利浦不僅能有理地推翻警方的各項指控，更擊破他們的各種審訊計畫，甚至還企圖操縱傑克和霍爾特，加深兩人在審訊手法上的分歧。傑克一心想向霍爾特證明自己，因此不顧霍爾特的阻止，擅用誆騙手段卻遭到拆穿，致使審訊過程的正當性遭受質疑。眼看菲利浦即將逍遙法外，傑克靈機一動，決定刺激菲利浦要求完美的個性，並以走運來形容這起零破綻的殺人案，這終讓無法忍受質疑的菲利浦親口認罪。"
+      },
+      "directedBy": {
+        "en": "Claire Scanlon",
+        "zh": "克萊兒·史坎倫"
+      },
+      "writtenBy": {
+        "en": "Luke Del Tredici",
+        "zh": "盧克·戴爾·翠帝夏"
+      }
+    },
+    {
+      "number": 15,
+      "overall": 105,
+      "code": "514",
+      "airDate": "2018-04-08",
+      "title": {
+        "en": "The Puzzle Master",
+        "zh": "猜字謎大師",
+        "zhNetflix": ""
+      },
+      "summary": {
+        "en": "After Amy passes the Sergeant's Exam, Jake tries to make their last case together memorable by choosing an investigation of a series of arsons connected to Amy's favorite crossword puzzle author, Vin Stermly. When Vin joins them on the case and impresses Amy with his intellect and looks, Jake becomes jealous. Holt and Gina meet the competition for Police Commissioner and are intimidated by a young woman in the running. Terry, Rosa, Hitchcock, and Scully debate over who should get the new Detective car.",
+        "zh": "在艾美通過警長測驗後，傑克特別依據她的喜好，挑選一起用填字遊戲留下線索的連環縱火案，做為紀念兩人最後一次攜手偵辦的案件，但是當艾美的偶像－－填字遊戲作家梅爾文·史鄧利加入了調查行動、協助警方辦案時，他帥氣的外型卻讓傑克備感威脅。吉娜協助霍爾特應戰其他舊時代的局長候選人，但在身為青年世代的奧莉薇雅·克勞馥加入戰局後，霍爾特才驚覺自己也是個舊時代的「恐龍」。蘿莎、希區考克與史考利對泰瑞申請到的一輛新警用車輛虎視眈眈，在泰瑞坦承自己於四人私下的競爭中作弊後，蘿莎因發現泰瑞總是默默幫助分局裡其他同仁的善心，而認為泰瑞夠格擁有新車。正當挫敗的霍爾特提振精神，打算擊敗奧莉薇雅時，他卻意外發現局長評選委員會對女性的偏頗觀念，因此決定為女性發聲，爭取雙方能夠公平競爭的環境。試圖壓抑嫉妒感的傑克，因辦案方式和梅爾文的思緒有異，而暗自行動卻未能及時阻止下一起縱火案，這令她不得不向艾美坦承他內心的不安，也在受到艾美的安撫之餘，靈光乍現，洞悉出罪案中的謎語並偵破案件。"
+      },
+      "directedBy": {
+        "en": "Akiva Schaffer",
+        "zh": "艾基瓦·薛佛"
+      },
+      "writtenBy": {
+        "en": "Lang Fisher",
+        "zh": "蘭·費雪"
+      }
+    },
+    {
+      "number": 16,
+      "overall": 106,
+      "code": "515",
+      "airDate": "2018-04-15",
+      "title": {
+        "en": "NutriBoom",
+        "zh": "直銷夢靨",
+        "zhNetflix": "紐崔瘋"
+      },
+      "summary": {
+        "en": "When the pyramid scheme NutriBoom refuses to let Jake go off easy after he wants to cancel his contract that he signed in \"HalloVeen\", he and Charles try to bring down the organization from the inside by investigating the company's shady past. Meanwhile, Amy's first day as Sergeant becomes stressful when she has to deal with a upbeat overachiever who behaves similar to her.",
+        "zh": "傑克與查爾斯被比爾參與的直銷公司纏上，為了取消合約以取回蜜月基金，傑克設想了一個間諜計畫。艾美新上任的這一天，她對小隊裡的下屬蓋瑞感到煩躁，並驚覺蓋瑞猶如男版的自己。查爾斯假扮成比爾，與傑克一同混入直銷公司總部，並成功竊取了該公司的帳目。艾美受不了蓋瑞的積極態度，因此向泰瑞、蘿莎與吉娜求助，但他們當初躲避艾美的招數都對蓋瑞不管用，這令艾美相當苦惱。傑克和查爾斯聯繫上直銷公司的代言人傑·伊錢德拉薩卡，打算聯手揭露直銷公司的弊端，以及老闆娘黛比·史托佛曼的失蹤真相。艾美經霍爾特的指點，發覺自己從未像霍爾特這般認真傾聽下屬的意見，因此她開始學習重視蓋瑞的才能。當直銷公司搶先對傑洗腦，傑克與查爾斯才發現黛比並未遭遇不測，實際上則是為躲避聯邦調查局而隱匿行蹤。如今，傑克寧願放棄黛比歸還給他的高額月費，也要誓死捍衛正義。"
+      },
+      "directedBy": {
+        "en": "Trent O'Donnell",
+        "zh": "川特·歐當諾"
+      },
+      "writtenBy": {
+        "en": "David Phillips",
+        "zh": "大衛·菲利浦斯"
+      }
+    },
+    {
+      "number": 17,
+      "overall": 107,
+      "code": "518",
+      "airDate": "2018-04-15",
+      "title": {
+        "en": "DFW",
+        "zh": "初見妹妹",
+        "zhNetflix": "達拉斯沃斯堡"
+      },
+      "summary": {
+        "en": "Jake's chaotic half-sister, Kate, comes to visit him and Amy for a couple days after a rough break-up. When she considers moving to New York to live with them, the two try to figure out a way to get her to return to Dallas. Terry injures himself after performing yoga with Charles and gets stuck in Hitchcock and Scully’s nap room. Gina tries to set Rosa up on a date.",
+        "zh": "傑克既緊張又滿懷期待地迎接來自達拉斯的同父異母妹妹凱特，然而他與艾美卻發覺凱特疑似是個麻煩人物。當泰瑞得知霍爾特選擇向查爾斯請教運動而不是自己後，便試圖證明自己也能做到查爾斯指導的瑜珈動作，結果卻意外受到運動傷害。吉娜極力介紹女性給蘿莎，想藉此平反蘿莎對她介紹對象之能力的質疑，並耍了一些小手段，讓蘿莎不得不對她心服口服。面對凱特一團糟的生活和偏差的行為舉止，傑克為防止凱特搬來紐約與他同居，便暗中邀請凱特的前男友柯特來到紐約，好藉機製造機會讓凱特返回達拉斯。不願承認自己不夠軟骨的泰瑞，因運動傷害而受困於警局一夜，最終在霍爾特與查爾斯的找尋下，才獲得解救。傑克發現柯特未善待凱特後，挺身捍衛妹妹，但凱特也在此時得知傑克看待她的真正心聲，於是打算和傑克斷絕關係。傑克不希望失去與凱特的親情，也想改變家人間的關係，而感同身受的凱特亦抱持相同的想法。"
+      },
+      "directedBy": {
+        "en": "Jaffar Mahmood",
+        "zh": "傑法·馬穆德"
+      },
+      "writtenBy": {
+        "en": "Jeff Topolski",
+        "zh": "傑夫·托波斯基"
+      }
+    },
+    {
+      "number": 18,
+      "overall": 108,
+      "code": "517",
+      "airDate": "2018-04-22",
+      "title": {
+        "en": "Gray Star Mutual",
+        "zh": "保險理賠",
+        "zhNetflix": "灰星相互保險"
+      },
+      "summary": {
+        "en": "Pimento returns as an insurance claims investigator to help Jake and Charles find out who burned down Charles' food truck. However, when he discovers how many events he's missed at the Nine-Nine after not being updated by the precinct for several months, he turns against them. Amy thinks that shopping for her wedding dress would make her look weak to her subordinates, so Rosa helps her choose the right dress while instilling a sense of confidence within her. Terry and Gina try to have Holt set up a Twitter account to increase his social media presence.",
+        "zh": "在查爾斯因經營餐車生意而陷入經濟困頓之際，他的餐車卻遭人焚毀，而保險理賠調查員竟是阿德利安。吉娜與泰瑞建議霍爾特註冊Twitter帳號，好透過社群媒體的力量，與奧莉薇雅等候選人競爭。艾美為了在工作場所證明自我，試圖掩蓋自己對婚紗的關注，但蘿莎卻要她拋下顧忌、相信自己的警職實力。當阿德利安發現在自己離開後，他對99分局內所發生的所有事情一概不知，傑克等人亦未向他分享後，他開始懷疑自己和99分局同仁的友誼，並帶入私人情緒，拒絕查爾斯的餐車理賠。傑克與查爾斯向保險公司申訴，使得阿德利安遭到開除，但查爾斯仍舊未能因此獲得理賠。在阿德利安終於解開誤會後，他偕同傑克和查爾斯調查縱火案真相，協助查爾斯取得理賠。"
+      },
+      "directedBy": {
+        "en": "Giovani Lampassi",
+        "zh": "吉歐瓦尼·藍帕西"
+      },
+      "writtenBy": {
+        "en": "Jessica Polonsky",
+        "zh": "潔西卡·波倫斯基"
+      }
+    },
+    {
+      "number": 19,
+      "overall": 109,
+      "code": "519",
+      "airDate": "2018-04-29",
+      "title": {
+        "en": "Bachelor/ette Party",
+        "zh": "告別單身派對",
+        "zhNetflix": "告別單身趴"
+      },
+      "summary": {
+        "en": "Charles plans out an overly-elaborate scavenger hunt for Jake's Bachelor Party. Not wanting to spend hours attempting it, Jake, Holt, and Terry go to a restaurant instead and try skipping to the end of the hunt only to suffer the consequences. At Amy's Bachelorette party, Amy finds out that Jake hired a band whose lead member she once dated (and is still in love with her) to perform at their wedding. She and the bridesmaids try to cancel the band's appearance.",
+        "zh": "負責策畫傑克告別單身派對的查爾斯，精心設計了好幾道的謎題，要傑克同霍爾特以及泰瑞解開，但一心想玩樂的他們，卻瞞著查爾斯暗自享用肉食與美酒。在艾美的告別單身派對上，艾美發覺自己是個無趣又呆板的人，而她唯一做過的一件瘋狂事蹟－－與樂隊歌手的一夜情，卻可能毀了她的婚禮，因為對她癡迷的前男友康斯坦汀將為她的婚禮獻唱。查爾斯發現傑克等三人作弊後，失望的他負氣離去，酒醉的傑克、霍爾特與泰瑞被迫藉由解謎來尋找查爾斯。康斯坦汀計畫於傑克與艾美的婚禮上將艾美搶回來，在無法勸退他的情況下，艾美打破了自身的道德成規，搶走康斯坦汀的合約並付之一炬。傑克透過謎題中的一塊拼圖－－偶像雷金納德·韋爾約翰森，成功尋得查爾斯，除了為自己的行為致歉，他也向查爾斯表明比起解謎，他更想與好友共處同歡的心情。"
+      },
+      "directedBy": {
+        "en": "Beth McCarthy-Miller",
+        "zh": "貝絲·麥卡錫-米勒"
+      },
+      "writtenBy": {
+        "en": "Carly Hallam Tosh",
+        "zh": "卡莉·海拉姆·塔許"
+      }
+    },
+    {
+      "number": 20,
+      "overall": 110,
+      "code": "520",
+      "airDate": "2018-05-06",
+      "title": {
+        "en": "Show Me Going",
+        "zh": "請求前往",
+        "zhNetflix": "加入行動"
+      },
+      "summary": {
+        "en": "When news of an active shooter in Brooklyn Heights reaches the precinct, they learn Rosa is near the scene and is heading to help. When they hear this, the squad, unable to go themselves, desperately fears for her safety. Feeling helpless, Jake frantically brainstorms ways to offer his assistance, only to be shut down by Holt. Meanwhile, Terry faces an existential crisis, and Gina and Amy try to make themselves useful by fixing Rosa's broken toilet.",
+        "zh": "傑克的警校同窗布雷特因舊仇而阻礙他加入特勤組的任務，艾美則夾在新舊同事－－制服警察與警探間左右為難。布魯克林高地發生槍擊事件，蘿莎因鄰近槍擊現場而加入警力和歹徒對峙，在99分局同仁擔憂蘿莎的同時，他們卻礙於命令而無法前往支援。傑克藉調查行動來轉移自己和查爾斯的注意力，但隨即發覺他們仍舊懸著一顆擔憂蘿莎安危的心，而泰瑞則產生危機意識，決定更新自己的保險。艾美決定同吉娜修繕蘿莎抱怨連連的廁所，除了能給予蘿莎驚喜，亦可藉此分散注意力，但過程卻不怎麼順遂。傑克打算違背霍爾特的命令，擅自前往現場支援蘿莎，但霍爾特希望他能謹守職位，並協助其他同事克服恐懼、面對現實。傑克最終還是聽取了霍爾特的建言，留在警局安撫緊張的泰瑞，而蘿莎最後也在同事們的期盼下平安歸來。"
+      },
+      "directedBy": {
+        "en": "Maggie Carey",
+        "zh": "瑪姬·凱莉"
+      },
+      "writtenBy": {
+        "en": "Phil Augusta Jackson",
+        "zh": "菲爾·奧加斯塔·傑克森"
+      }
+    },
+    {
+      "number": 21,
+      "overall": 111,
+      "code": "521",
+      "airDate": "2018-05-13",
+      "title": {
+        "en": "White Whale",
+        "zh": "白鯨記",
+        "zhNetflix": "白鯨"
+      },
+      "summary": {
+        "en": "Rosa and Amy team up to take down their \"white whale\" suspect - a ruthless killer who has managed to elude them for seven years - while Terry helps Jake tackle his wedding planning chores, such as picking out the proper napkin color. Elsewhere, Captain Holt and his rival, Olivia Crawford, try to convince each other to step down in the campaign for Commissioner.",
+        "zh": "蘿莎的「白鯨」塞吉歐·敏德爾終於現身，艾美決定與她攜手，誓言將這名在七年前從她們手中溜走的逃犯追捕到案。必須在一天內，辦妥多達一週分量之婚禮事宜的傑克，向泰瑞尋求幫助，並借助希區考克與史考利的力量。由於半數的局長評選委員支持身為白人異男的候選人，瓜分另一半票數的霍爾特與奧莉薇雅，得設法讓對方退出選戰。面對屢嚐敗果、深感挫敗的蘿莎，艾美坦承自己的疏忽需為敏德爾當年逃脫成功負責，這令質疑自己多年的蘿莎，因艾美的欺騙而感到氣憤。安排婚禮事宜的種種不順，令傑克擔憂自己無法成為一名好丈夫，身為過來人的泰瑞便指點他「好丈夫」並不在於完美，而是為雙方努力的心意。在霍爾特與奧莉薇雅得知彼此都決定退選、選擇支持對方後，奧莉薇雅協助霍爾特尋找他的退選信件並將它撕毀，期望霍爾特能不辜負她的退讓。在艾美嘗試彌補錯誤、和蘿莎解開誤會後，兩人秉持搭檔精神，順利逮捕了敏德爾。"
+      },
+      "directedBy": {
+        "en": "Matthew Nodella",
+        "zh": "麥修·諾達拉"
+      },
+      "writtenBy": {
+        "en": "Matt Lawton & Carol Kolb",
+        "zh": "馬特·勞頓 卡蘿·柯爾布"
+      }
+    },
+    {
+      "number": 22,
+      "overall": 112,
+      "code": "522",
+      "airDate": "2018-05-20",
+      "title": {
+        "en": "Jake & Amy",
+        "zh": "傑克與艾美",
+        "zhNetflix": ""
+      },
+      "summary": {
+        "en": "Jake and Amy's wedding plans start falling apart as someone has threatened the wedding with a bomb. Jake, Amy, and Charles discover that the culprit was a criminal Amy arrested in the past who planted a bomb in the vents after seeing the wedding advertised in the newspaper by Charles. Charles redeems himself by setting up the wedding outside of the precinct, where Jake and Amy are happily married. While fixing Amy's veil, Terry and Rosa meet a cab driver named Alicia, whom Terry tries to hook Rosa up with. Holt receives an email informing him if he has successfully been appointed Commissioner, and holds off reading it out of fear. At the wedding after-party, Holt finally reads it, but his neutral facial expression leaves the squad unsure as to the outcome.",
+        "zh": "在舉行傑克與艾美婚禮的這天，大夥面臨艾美的婚紗沾到污漬、婚禮蛋糕未送達、戒童生病等種種衰事，傑克甚至還接到一通炸彈威脅通知。試圖說服蘿莎重返情場的泰瑞，在同她送洗艾美的頭紗時，有意撮合蘿莎和Uber司機艾莉西亞。霍爾特在與吉娜共同訓練切達擔任「戒狗」時，收到紐約市警察局局長競選的結果通知。傑克、艾美與查爾斯上路追查傑克的宿敵，然而炸彈客其實是對艾美懷恨在心的前科犯，且是從查爾斯的登報內容獲知資訊。成為反爆組組長的泰迪，在協助偵查婚禮現場的炸彈之餘，仍抱持追回艾美的希望。由於拆彈時程長，傑克與艾美被迫取消婚禮，自責的查爾斯便說服兩人在警局舉行婚禮。傑克與艾美在分局同仁的祝福下完婚，受到艾美一席話啟發的霍爾特，也決定勇於面對競選結果。"
+      },
+      "directedBy": {
+        "en": "Dan Goor",
+        "zh": "丹·戈爾"
+      },
+      "writtenBy": {
+        "en": "Dan Goor & Luke Del Tredici",
+        "zh": "丹·戈爾 盧克·戴爾·翠帝夏"
+      }
+    }
+  ],
+  "source": {
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "fetchedAt": "2026-11-06",
+    "en": {
+      "title": "Brooklyn Nine-Nine season 5",
+      "url": "https://en.wikipedia.org/wiki/Brooklyn_Nine-Nine_season_5",
+      "revision": 1341938912
+    },
+    "zh": {
+      "title": "荒唐分局 (第五季)",
+      "url": "https://zh.wikipedia.org/wiki/%E8%8D%92%E5%94%90%E5%88%86%E5%B1%80_(%E7%AC%AC%E4%BA%94%E5%AD%A3)",
+      "revision": 92608893
+    }
+  }
+}

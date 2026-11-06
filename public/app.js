@@ -26,6 +26,8 @@ const PLAN_COPY = {
   all: '全部',
   current: '目前方案',
   login: '免費登入',
+  // 註冊會加入電子報名單時顯示在登入按鈕下面(要讓人知道會收到信)
+  loginNote: '註冊後新筆記會寄到你的信箱,隨時可取消',
   upgrade: '升級 Pro',
   comingSoon: '即將開放'
 }
@@ -41,6 +43,7 @@ const state = {
     letmeuse: { appId: null, baseUrl: null },
     freeLimit: 3,
     tiers: [],
+    newsletter: false,
     billing: { enabled: false, plan: null }
   },
   user: null,
@@ -426,6 +429,12 @@ function renderPlans(container) {
         sdk()?.login()
       }
       card.appendChild(btn)
+      if (state.config.newsletter) {
+        const note = document.createElement('p')
+        note.className = 'plan-note'
+        note.textContent = PLAN_COPY.loginNote
+        card.appendChild(note)
+      }
     } else if (tier.id === 'pro' && plan) {
       const btn = document.createElement('button')
       btn.className = 'auth-btn'
@@ -756,6 +765,12 @@ function lockPanel(total, shown) {
       plans.textContent = PLAN_COPY.link
       plans.onclick = openPlans
       panel.append(btn, plans)
+      if (state.config.newsletter) {
+        const note = document.createElement('p')
+        note.className = 'plan-note'
+        note.textContent = PLAN_COPY.loginNote
+        panel.appendChild(note)
+      }
     }
   } else {
     sub.textContent = `免費會員顯示前 ${shown} 筆,Pro 看全部`
