@@ -71,9 +71,21 @@ function groupCues(cues) {
 }
 
 // 一段文章切成句子(劇情介紹用):以句號、問號、驚嘆號收尾,引號括號跟著前一句
+// 只收「後面一定還接著東西」的稱謂;St.、etc. 常出現在真正的句尾,不能算
+const ABBREVIATION_END = /\b(?:Lt|Sgt|Capt|Det|Mr|Mrs|Ms|Dr|vs)\.$/
+
 function splitSentences(text) {
   const parts = String(text || '').match(/[^.!?]+(?:[.!?]+["')\]]*|$)/g) || []
-  return parts.map((part) => part.trim()).filter((part) => part.length > 1)
+  const sentences = []
+  for (const raw of parts) {
+    const part = raw.trim()
+    if (part.length <= 1) continue
+    // 「Lt.」「Mr.」後面的句點不是句尾,跟下一段接回去
+    const last = sentences[sentences.length - 1]
+    if (last && ABBREVIATION_END.test(last)) sentences[sentences.length - 1] = `${last} ${part}`
+    else sentences.push(part)
+  }
+  return sentences
 }
 
 module.exports = { parseCues, groupCues, splitSentences }

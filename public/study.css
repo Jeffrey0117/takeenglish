@@ -83,3 +83,18 @@
 .ep-lock { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1px; margin-left: 6px; }
 .study-more { display: block; width: 100%; padding: 10px; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--yellow); font-size: 13px; font-weight: 800; cursor: pointer; }
 .study-more:hover { background: rgba(255, 214, 10, 0.06); }
+
+/* 一般的字(查離線字典):平常看起來就是文字,滑過去或點開才提示可以查 */
+.study-word.plain { border-bottom: 0; color: inherit; padding: 0; }
+.study-word.plain:hover { background: rgba(255, 214, 10, 0.18); color: var(--text); }
+.study-word.plain.open { background: var(--yellow); color: #000; }
+
+/* 字典小卡內容比較多,允許換行 */
+.study-tip { flex-wrap: wrap; white-space: normal; max-width: 100%; vertical-align: baseline; row-gap: 2px; }
+.study-tip-head { display: inline-flex; align-items: baseline; gap: 8px; }
+.study-tip-head b { color: var(--yellow); }
+.study-tip-ipa { color: var(--muted); font-weight: 500; }
+.study-tip-note { color: var(--muted); font-size: 12px; }
+.study-level { padding: 0 6px; border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 800; }
+.study-level.level-1,
+.study-level.level-2 { border-color: rgba(255, 214, 10, 0.5); color: var(--yellow); }

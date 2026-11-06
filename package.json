@@ -11,5 +11,8 @@
     "express": "^4.19.2",
     "paywall-kit": "github:Jeffrey0117/paywall-kit",
     "ratelimit-kit": "github:Jeffrey0117/ratelimit-kit"
+  },
+  "devDependencies": {
+    "opencc-js": "^1.4.2"
   }
 }

@@ -83,10 +83,10 @@ function siteLinks() {
   return { reelscript: { url, appId: process.env.REELSCRIPT_APP_ID || '' } }
 }
 
-// 免費會員每次搜尋看幾筆。沒設 = 10;設 0 = 不限(登入就看全部)
+// 免費會員每次搜尋看幾筆。沒設 = 5;設 0 = 不限(登入就看全部)
 function memberLimit() {
   const parsed = Number.parseInt(process.env.MEMBER_LIMIT || '', 10)
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 10
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 5
 }
 
 function shutdown() {

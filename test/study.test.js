@@ -10,6 +10,8 @@ const { createAnnotator } = require('../src/annotator')
 const { createPaygate } = require('../src/paygate')
 const { createPlans } = require('../src/plans')
 const { createTranscriptLibrary } = require('../src/transcripts')
+const { createDictionary } = require('../src/dictionary')
+const { createShowLibrary } = require('../src/shows')
 const { createDailyUsage } = require('../src/study-routes')
 const { parseCues, groupCues, splitSentences } = require('../src/vtt')
 const { createTestKeys, makeEs256Token, fakeJwksFetch, futureExp, TEST_TOKENS, clipId } = require('./helpers')
@@ -226,7 +228,7 @@ test('每日額度:同一支重複看不重複算,換日歸零', () => {
 
 // ---- 路由 ----
 
-function startApp({ subscribers = {}, transcriptsDir = tempDir('tr-'), annotatorUrl = 'http://engine.test/a', subtitles } = {}) {
+function startApp({ subscribers = {}, transcriptsDir = tempDir('tr-'), annotatorUrl = 'http://engine.test/a', subtitles, dictionary } = {}) {
   const engine = fakeEngine()
   const { fetchImpl: jwksFetch } = fakeJwksFetch([KEYS.jwk])
   const paygateFetch = async (url) => {
@@ -244,6 +246,7 @@ function startApp({ subscribers = {}, transcriptsDir = tempDir('tr-'), annotator
     paygate: createPaygate({ baseUrl: 'http://paygate.test', token: 't', alsoProducts: ['reelscript'], fetchImpl: paygateFetch, onError: () => {} }),
     annotator: createAnnotator({ url: annotatorUrl, cacheDir: tempDir('ann-'), fetchImpl: engine.fetchImpl, onError: () => {} }),
     transcripts: createTranscriptLibrary({ dir: transcriptsDir }),
+    ...(dictionary ? { dictionary } : {}),
     letmeuse: {}
   })
   return new Promise((resolve) => {
@@ -314,16 +317,23 @@ test('片段解析:Pro 不限支數;姊妹產品的訂閱也算 Pro;沒字幕 40
 })
 
 test('劇情解析:前 3 集訪客也能看;第 4 集起訪客 401、免費會員 402、Pro 可看', async () => {
-  const { server, base } = await startApp({ subscribers: { 'takeenglish:pro@example.com': '2099-01-01' } })
+  const { server, base, engine } = await startApp({ subscribers: { 'takeenglish:pro@example.com': '2099-01-01' } })
   try {
     const url = (ep) => `${base}/api/shows/brooklyn-nine-nine/seasons/5/episodes/${ep}/study`
     const open = await fetch(url(1))
     assert.equal(open.status, 200)
     const body = await open.json()
-    assert.ok(body.data.sentences.length >= 2)
+    // 這一季有事先標好的內容,所以用它,不會去叫標註引擎
+    assert.equal(body.data.mode, 'curated')
+    assert.equal(body.data.sentences.length, 3)
     assert.ok(body.data.sentences[0].text.startsWith('Jake and Rosa'))
-    assert.ok(body.data.sentences[0].zh.startsWith('譯:'))
+    assert.ok(body.data.sentences[0].zh.includes('傑克和蘿莎'))
+    assert.deepEqual(body.data.sentences[2].vocab, [
+      { word: 'badly miss', zh: '非常想念' },
+      { word: 'maternity leave', zh: '產假' }
+    ])
     assert.equal((await fetch(url(3))).status, 200)
+    assert.equal(engine.calls.length, 0)
 
     const guest = await fetch(url(4))
     assert.equal(guest.status, 401)
@@ -408,15 +418,158 @@ test('姊妹產品的訂閱查不到時不影響本站判斷:照本站的結果�
   assert.equal(calls.length, 2, 'the answer is cached like any other')
 })
 
-test('沒接標註引擎時:解析一律 503,設定也說沒開', async () => {
-  const { server, base } = await startApp({ annotatorUrl: '' })
+test('沒開標註引擎時走字典模式:不花錢,片段只回原句,劇情用事先標好的', async () => {
+  const { server, base, engine } = await startApp({ annotatorUrl: '' })
+  try {
+    const clip = await fetch(`${base}/api/clips/${clipId('clip-a')}/study`, { headers: bearer('free@example.com') })
+    assert.equal(clip.status, 200)
+    const body = await clip.json()
+    assert.equal(body.data.mode, 'dictionary')
+    assert.deepEqual(body.data.cues[0], { start: 1.5, end: 3.402, text: 'Break a leg out there!', zh: '', vocab: [] })
+    assert.deepEqual(body.data.quota, { limit: 3, used: 1 })
+
+    const summary = await (await fetch(`${base}/api/shows/brooklyn-nine-nine/seasons/5/episodes/1/study`)).json()
+    assert.equal(summary.data.mode, 'curated')
+    assert.equal(engine.calls.length, 0, 'no paid call was made')
+
+    const config = await (await fetch(`${base}/api/config`)).json()
+    assert.equal(config.data.study, true)
+    assert.equal(config.data.dictionary, true)
+  } finally {
+    server.close()
+  }
+})
+
+test('標註引擎和字典都沒有時:解析一律 503,設定也說沒開', async () => {
+  const none = { enabled: false, lookup: () => null }
+  const { server, base } = await startApp({ annotatorUrl: '', dictionary: none })
   try {
     assert.equal((await fetch(`${base}/api/clips/${clipId('clip-a')}/study`, { headers: bearer('free@example.com') })).status, 503)
     assert.equal((await fetch(`${base}/api/shows/brooklyn-nine-nine/seasons/5/episodes/1/study`)).status, 503)
+    assert.equal((await fetch(`${base}/api/dict/cake`)).status, 503)
     const config = await (await fetch(`${base}/api/config`)).json()
     assert.equal(config.data.study, false)
   } finally {
     server.close()
+  }
+})
+
+// ---- 離線字典 ----
+
+test('字典:查得到單字、詞形變化、縮寫和口語寫法,標點與大小寫不影響', () => {
+  const dictionary = createDictionary({ dir: path.join(__dirname, '..', 'data', 'dictionary') })
+  assert.equal(dictionary.enabled, true)
+  assert.ok(dictionary.size > 40000)
+
+  const cake = dictionary.lookup('Cake!')
+  assert.equal(cake.word, 'cake')
+  assert.ok(cake.senses[0].includes('蛋糕'))
+  assert.ok(cake.phonetic.length > 0)
+  assert.ok(cake.level >= 1 && cake.level <= 5)
+
+  assert.equal(dictionary.lookup('cakes').word, 'cake')
+  assert.equal(dictionary.lookup('went').word, 'go')
+  assert.equal(dictionary.lookup('messed').word, 'mess')
+  // 縮寫:字典本身有收的(don't)用它自己的條目,沒收的還原成前面那個字
+  assert.ok(dictionary.lookup("don't").senses.length > 0)
+  assert.equal(dictionary.lookup("cat's").word, 'cat')
+  assert.equal(dictionary.lookup('cat’s').word, 'cat')
+  // 本身就是字典條目的詞形,以它自己的解釋為主
+  assert.equal(dictionary.lookup('left').word, 'left')
+
+  const gonna = dictionary.lookup('gonna')
+  assert.equal(gonna.spoken, 'going to')
+  assert.ok(gonna.senses[0].includes('將要'))
+
+  // 釋義是繁體、台灣用語
+  assert.deepEqual(dictionary.lookup('software').senses, ['n. 軟體'])
+})
+
+test('字典:查不到或不是單字的輸入回 null', () => {
+  const dictionary = createDictionary({ dir: path.join(__dirname, '..', 'data', 'dictionary') })
+  for (const bad of ['', '   ', 'zzzzqqqq', '12345', '../etc/passwd', 'two words', 'a'.repeat(200), null, undefined, { a: 1 }]) {
+    assert.equal(dictionary.lookup(bad), null, String(bad))
+  }
+  assert.equal(createDictionary({ dir: path.join(__dirname, 'no-such-dir') }).enabled, false)
+  assert.equal(createDictionary().lookup('cake'), null)
+})
+
+test('GET /api/dict/:word 人人可查、可以長快取;查不到 404', async () => {
+  const { server, base } = await startApp({ annotatorUrl: '' })
+  try {
+    const res = await fetch(`${base}/api/dict/amiable`)
+    assert.equal(res.status, 200)
+    assert.equal(res.headers.get('cache-control'), 'public, max-age=86400')
+    const body = await res.json()
+    assert.equal(body.data.word, 'amiable')
+    assert.ok(body.data.senses[0].includes('和藹'))
+    const missing = await fetch(`${base}/api/dict/zzzzqqqq`)
+    assert.equal(missing.status, 404)
+    assert.equal(missing.headers.get('cache-control'), 'no-store')
+    // 夾了標籤符號的輸入只會被當成普通的字去查,回來的也只有字典內容
+    const tagged = await (await fetch(`${base}/api/dict/${encodeURIComponent('<script>')}`)).json()
+    assert.equal(tagged.data.word, 'script')
+    assert.ok(!JSON.stringify(tagged).includes('<'))
+  } finally {
+    server.close()
+  }
+})
+
+test('字典:複數優先對到常見拼法;超長輸入不會卡住;原型上的名字不會查到怪東西', () => {
+  const dictionary = createDictionary({ dir: path.join(__dirname, '..', 'data', 'dictionary') })
+  assert.equal(dictionary.lookup('cookies').word, 'cookie')
+  // glasses(眼鏡)本身是字典條目,以它自己為主
+  assert.equal(dictionary.lookup('glasses').word, 'glasses')
+  assert.equal(dictionary.lookup('boxes').word, 'box')
+  assert.equal(dictionary.lookup('is').word, 'is')
+  const started = Date.now()
+  // 超長輸入會先被截短(剩下開頭的 a,查得到是正常的);重點是不能卡住
+  dictionary.lookup(`a${'-'.repeat(200000)}a`)
+  assert.ok(Date.now() - started < 50, 'a huge input must be handled quickly')
+  for (const name of ['__proto__', 'tostring', 'hasownproperty', 'valueof']) {
+    assert.equal(dictionary.lookup(name), null, name)
+  }
+})
+
+test('網址編碼壞掉的請求回 400,不是 500', async () => {
+  const { server, base } = await startApp({ annotatorUrl: '' })
+  try {
+    const res = await fetch(`${base}/api/dict/%E0%A4%A`)
+    assert.equal(res.status, 400)
+    assert.deepEqual(await res.json(), { success: false, error: 'bad request' })
+  } finally {
+    server.close()
+  }
+})
+
+test('事先標好的解析:句子跟現在的劇情介紹對不上就不用(重新匯入後不會配錯)', () => {
+  const dir = tempDir('shows-')
+  fs.mkdirSync(path.join(dir, 'demo'))
+  const season = { show: { id: 'demo', title: { en: 'Demo', zh: '示範' } }, season: 1, episodes: [{ number: 1, summary: { en: 'One. Two.' } }] }
+  fs.writeFileSync(path.join(dir, 'demo', 'season-1.json'), JSON.stringify(season))
+  fs.writeFileSync(path.join(dir, 'demo', 'season-1.study.json'), JSON.stringify({
+    episodes: { 1: [{ text: 'One.', zh: '一。', vocab: [{ word: 'One', zh: '一' }] }, { text: 'Two.', zh: '二。', vocab: [] }] }
+  }))
+  const shows = createShowLibrary({ dir })
+  assert.deepEqual(shows.study('demo', 1, 1, ['One.', 'Two.']), [
+    { zh: '一。', vocab: [{ word: 'One', zh: '一' }] },
+    { zh: '二。', vocab: [] }
+  ])
+  assert.equal(shows.study('demo', 1, 1, ['One.', 'Changed.']), null)
+  assert.equal(shows.study('demo', 1, 1, ['One.']), null)
+  assert.equal(shows.study('demo', 1, 2, ['One.', 'Two.']), null)
+  assert.equal(shows.study('demo', 2, 1, ['One.', 'Two.']), null)
+  assert.deepEqual(shows.list().map((s) => s.id), ['demo'])
+})
+
+test('這一季標好的檔案:22 集都對得上現在的劇情介紹', () => {
+  const shows = createShowLibrary({ dir: path.join(__dirname, '..', 'data', 'shows') })
+  const season = shows.season('brooklyn-nine-nine', 5)
+  for (const ep of season.episodes) {
+    const sentences = splitSentences(ep.summary.en)
+    const lines = shows.study('brooklyn-nine-nine', 5, ep.number, sentences)
+    assert.ok(lines, `episode ${ep.number} has no usable study data`)
+    assert.ok(lines.every((line) => line.zh.length > 0), `episode ${ep.number} has an empty translation`)
   }
 })
 

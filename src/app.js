@@ -12,7 +12,8 @@ const { createNewsletter } = require('./newsletter')
 const { createShowArtwork } = require('./show-artwork')
 const { createAnnotator } = require('./annotator')
 const { createTranscriptLibrary } = require('./transcripts')
-const { mountStudyRoutes, createDailyUsage } = require('./study-routes')
+const { createDictionary } = require('./dictionary')
+const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
 const SHOW_ID_PATTERN = /^[a-z0-9-]{1,80}$/
@@ -70,6 +71,7 @@ function createApp({
   shows = createShowLibrary({ dir: path.join(__dirname, '..', 'data', 'shows') }),
   newsletter = createNewsletter(),
   annotator = createAnnotator(),
+  dictionary = createDictionary({ dir: path.join(__dirname, '..', 'data', 'dictionary') }),
   transcripts = createTranscriptLibrary({ dir: path.join(__dirname, '..', 'data', 'transcripts') }),
   // 給前端的站外連結(例如姊妹站),網址由環境變數給,不寫死在原始碼
   links = {},
@@ -184,7 +186,9 @@ function createApp({
         // 註冊會同步到電子報名單時,前端要在登入按鈕旁邊講清楚
         newsletter: newsletter.enabled,
         // 「逐句解析」有沒有開(要接上標註引擎才有)
-        study: annotator.enabled,
+        study: annotator.enabled || dictionary.enabled,
+        // 點字查詞用的離線字典有沒有載入
+        dictionary: dictionary.enabled,
         links,
         billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
       }
@@ -198,12 +202,14 @@ function createApp({
     tokens,
     clipcafe,
     annotator,
+    dictionary,
     shows,
     transcripts,
     usage: createDailyUsage(),
     limiter,
     clientIp
   })
+  mountDictionaryRoute(app, { dictionary, limiter, clientIp })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })
@@ -281,6 +287,11 @@ function createApp({
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
+    // 網址編碼壞掉、內容格式不對這類是對方的問題:回 4xx 就好,不要當成伺服器出錯去記一大段
+    if (err.status >= 400 && err.status < 500 && !res.headersSent) {
+      res.set('Cache-Control', 'no-store')
+      return res.status(err.status).json({ success: false, error: 'bad request' })
+    }
     process.stderr.write(`[unhandled] ${req.method} ${req.originalUrl}: ${err.stack}\n`)
     // 已經送到一半就只能斷線,不然連線會掛著
     if (res.headersSent) return res.destroy()

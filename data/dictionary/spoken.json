@@ -1,0 +1,31 @@
+{
+  "note": "影集電影裡常聽到、一般字典查不到的口語寫法。這份是自己整理的,可以直接增修;格式是 單字: [原本的寫法, 中文說明]。",
+  "words": {
+    "gonna": ["going to", "將要、打算(going to 的口語說法)"],
+    "wanna": ["want to", "想要(want to 的口語說法)"],
+    "gotta": ["got to", "必須、得要(have got to 的口語說法)"],
+    "kinda": ["kind of", "有點、算是(kind of 的口語說法)"],
+    "sorta": ["sort of", "有點、算是(sort of 的口語說法)"],
+    "outta": ["out of", "離開、從…出來(out of 的口語說法)"],
+    "lotta": ["lot of", "很多(a lot of 的口語說法)"],
+    "lemme": ["let me", "讓我(let me 的口語說法)"],
+    "gimme": ["give me", "給我(give me 的口語說法)"],
+    "dunno": ["don't know", "不知道(don't know 的口語說法)"],
+    "gotcha": ["got you", "懂了;抓到你了(got you 的口語說法)"],
+    "ain't": ["am not / is not / are not", "不是、沒有(口語,正式場合不用)"],
+    "y'all": ["you all", "你們大家(美國南方口語)"],
+    "ya": ["you", "你(you 的口語說法)"],
+    "yeah": ["yes", "對、是啊(yes 的口語說法)"],
+    "yep": ["yes", "對、沒錯(yes 的口語說法)"],
+    "nope": ["no", "不、沒有(no 的口語說法)"],
+    "cuz": ["because", "因為(because 的口語說法)"],
+    "'cause": ["because", "因為(because 的口語說法)"],
+    "'em": ["them", "他們、它們(them 的口語說法)"],
+    "tryna": ["trying to", "正試著要(trying to 的口語說法)"],
+    "shoulda": ["should have", "早該(should have 的口語說法)"],
+    "coulda": ["could have", "本來可以(could have 的口語說法)"],
+    "woulda": ["would have", "本來會(would have 的口語說法)"],
+    "whatcha": ["what are you", "你在…什麼(what are you 的口語說法)"],
+    "c'mon": ["come on", "拜託、快點、少來(come on 的口語說法)"]
+  }
+}

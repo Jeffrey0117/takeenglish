@@ -1,15 +1,28 @@
-// 「點字就懂」的共用畫面:一句英文(重點片語可點)+ 一句中文。片語搜尋頁和看劇區都用這份。
+// 「點字就懂」的共用畫面:一句英文(每個字都能點)+ 一句中文。片語搜尋頁和看劇區都用這份。
+//   標好的重點片語(黃色底線):點了出現這句話裡的意思
+//   其他的字:點了查離線字典(音標、中文、常用程度)
 (function () {
   // 這裡的文字要改只改這一處
   const TEXT = {
     seeInShows: '看影集怎麼講 →',
     loading: '解析中…',
+    looking: '查詢中…',
+    notFound: '字典裡沒有這個字',
+    spoken: (original) => `口語,原本是 ${original}`,
+    baseForm: (base) => `原形 ${base}`,
+    levels: { 1: '最常用', 2: '常用', 3: '中級', 4: '進階', 5: '少見' },
     failed: '解析暫時用不了,稍後再試',
     noSubtitles: '這支片段沒有字幕可以解析',
     login: '登入後可以逐句解析',
     upgrade: '這部分是 Pro 內容',
     dailyLimit: (limit) => `今天的 ${limit} 支免費解析用完了`
   }
+
+  const WORD_CHAR = /[\p{L}\p{N}]/u
+  // 一個「字」:字母開頭,中間可以有撇號和連字號(don't、first-class)
+  // 撇號和連字號只算在兩個字母中間(him--and 是兩個字,不是一個)
+  const TOKEN = /[A-Za-z]+(?:['’-][A-Za-z]+)*['’]?/g
+  const lookups = new Map()
 
   function el(tag, className, text) {
     const node = document.createElement(tag)
@@ -19,8 +32,6 @@
   }
 
   // 把句子切成「一般文字 / 重點片語」的片段。長的片語先配,配過的位置不重複用。
-  const WORD_CHAR = /[\p{L}\p{N}]/u
-
   function segments(text, vocab) {
     const taken = new Array(text.length).fill(null)
     const lower = text.toLowerCase()
@@ -61,32 +72,98 @@
     for (const word of root.querySelectorAll('.study-word.open')) word.classList.remove('open')
   }
 
-  // 一行:英文(片語可點)+ 中文。點片語出現小卡:中文意思 + 「看影集怎麼講」連到片語搜尋。
+  // 查離線字典。同一個字只問伺服器一次
+  function lookupWord(word) {
+    const key = word.toLowerCase().replace(/’/g, "'")
+    if (!lookups.has(key)) {
+      lookups.set(
+        key,
+        fetch(`/api/dict/${encodeURIComponent(key)}`)
+          .then((res) => {
+            // 只有「字典裡真的沒有」(404)才記住;被限流或伺服器出錯下次要能再查
+            if (!res.ok && res.status !== 404) lookups.delete(key)
+            return res.json().then((body) => (res.ok && body.success ? body.data : null))
+          })
+          .catch(() => {
+            lookups.delete(key)
+            return null
+          })
+      )
+    }
+    return lookups.get(key)
+  }
+
+  function searchLink(phrase) {
+    const link = el('a', 'study-tip-link', TEXT.seeInShows)
+    link.href = `/?q=${encodeURIComponent(phrase)}`
+    link.onclick = (event) => event.stopPropagation()
+    return link
+  }
+
+  // 點一個字 → 開關它旁邊的小卡。fill(tip) 負責把內容放進去
+  function attachTip(button, row, fill) {
+    button.onclick = (event) => {
+      event.stopPropagation()
+      const wasOpen = button.classList.contains('open')
+      closeTips(row.parentElement || row)
+      if (wasOpen) return
+      button.classList.add('open')
+      const tip = el('span', 'study-tip')
+      button.after(tip)
+      fill(tip)
+    }
+  }
+
+  function fillFromDictionary(tip, word) {
+    tip.append(el('span', 'study-tip-zh', TEXT.looking))
+    lookupWord(word).then((entry) => {
+      if (!tip.isConnected) return
+      tip.replaceChildren()
+      if (!entry) {
+        tip.append(el('span', 'study-tip-zh', TEXT.notFound), searchLink(word))
+        return
+      }
+      const head = el('span', 'study-tip-head')
+      head.append(el('b', '', entry.word))
+      if (entry.phonetic) head.append(el('span', 'study-tip-ipa', `/${entry.phonetic}/`))
+      head.append(el('span', `study-level level-${entry.level}`, TEXT.levels[entry.level] || ''))
+      tip.append(head)
+      if (entry.spoken) tip.append(el('span', 'study-tip-note', TEXT.spoken(entry.spoken)))
+      else if (entry.word !== entry.query) tip.append(el('span', 'study-tip-note', TEXT.baseForm(entry.word)))
+      for (const sense of entry.senses || []) tip.append(el('span', 'study-tip-zh', sense))
+      tip.append(searchLink(entry.word))
+    })
+  }
+
+  // 一段沒被標成重點片語的文字:裡面每個英文字各自可點
+  function appendPlainText(parent, row, text) {
+    let last = 0
+    for (const match of text.matchAll(TOKEN)) {
+      if (match.index > last) parent.append(text.slice(last, match.index))
+      const button = el('button', 'study-word plain', match[0])
+      button.type = 'button'
+      attachTip(button, row, (tip) => fillFromDictionary(tip, match[0]))
+      parent.append(button)
+      last = match.index + match[0].length
+    }
+    if (last < text.length) parent.append(text.slice(last))
+  }
+
+  // 一行:英文(每個字可點)+ 中文(有的話)
   function renderLine(line) {
     const row = el('div', 'study-line')
     const english = el('p', 'study-en')
     for (const part of segments(line.text || '', line.vocab)) {
       if (!part.item) {
-        english.append(part.text)
+        appendPlainText(english, row, part.text)
         continue
       }
-      const word = el('button', 'study-word', part.text)
-      word.type = 'button'
-      word.onclick = (event) => {
-        event.stopPropagation()
-        const wasOpen = word.classList.contains('open')
-        closeTips(row.parentElement || row)
-        if (wasOpen) return
-        word.classList.add('open')
-        const tip = el('span', 'study-tip')
-        tip.append(el('span', 'study-tip-zh', part.item.zh))
-        const link = el('a', 'study-tip-link', TEXT.seeInShows)
-        link.href = `/?q=${encodeURIComponent(part.item.word)}`
-        link.onclick = (e) => e.stopPropagation()
-        tip.append(link)
-        word.after(tip)
-      }
-      english.append(word)
+      const phrase = el('button', 'study-word', part.text)
+      phrase.type = 'button'
+      attachTip(phrase, row, (tip) => {
+        tip.append(el('span', 'study-tip-zh', part.item.zh), searchLink(part.item.word))
+      })
+      english.append(phrase)
     }
     row.append(english)
     if (line.zh) row.append(el('p', 'study-zh', line.zh))

@@ -55,7 +55,27 @@ function createDailyUsage({ now = Date.now } = {}) {
 //   每集劇情介紹   GET /api/shows/:id/seasons/:n/episodes/:ep/study
 //   整集台詞       GET /api/shows/:id/seasons/:n/episodes/:ep/transcript?page=0
 // 誰能看多少由 plans 決定(study = 每天幾支片段、studyEpisodes = 前幾集開放)。
-function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, shows, transcripts, usage, limiter, clientIp }) {
+//
+// 資料來源有三種,前端從回應的 mode 知道是哪一種:
+//   curated    事先標好存在 repo 裡的(看劇區的劇情介紹)— 有中文、有重點片語
+//   ai         標註引擎即時算的(要花錢,預設關閉)— 有中文、有重點片語
+//   dictionary 只給原句,每個字由前端向離線字典查 — 不花錢
+function mountStudyRoutes(app, {
+  viewer,
+  plans,
+  tokens,
+  clipcafe,
+  annotator,
+  dictionary,
+  shows,
+  transcripts,
+  usage,
+  limiter,
+  clientIp
+}) {
+  const available = () => annotator.enabled || dictionary.enabled
+  const liveMode = () => (annotator.enabled ? 'ai' : 'dictionary')
+
   function tooMany(req, res) {
     if (limiter.check(`study:${clientIp(req)}`, REQUESTS_PER_MINUTE).allowed) return false
     res.set('Retry-After', '30')
@@ -64,6 +84,8 @@ function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, sho
   }
 
   async function annotated(res, key, sentences) {
+    // 沒開標註引擎:只回原句,查詞交給離線字典
+    if (!annotator.enabled) return sentences.map(() => ({ zh: '', vocab: [] }))
     try {
       return await annotator.annotate(key, sentences)
     } catch (err) {
@@ -78,7 +100,7 @@ function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, sho
     if (tooMany(req, res)) return
     const slug = TOKEN_PATTERN.test(req.params.id) ? tokens.open('id', req.params.id) : null
     if (!slug) return fail(res, 404, 'clip_not_found')
-    if (!annotator.enabled) return fail(res, 503, 'study_unavailable')
+    if (!available()) return fail(res, 503, 'study_unavailable')
     const { user, tier } = await viewer(req)
     if (!user) return fail(res, 401, 'unauthorized')
     const limit = plans.quota(tier, 'study')
@@ -111,6 +133,7 @@ function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, sho
     return res.json({
       success: true,
       data: {
+        mode: liveMode(),
         cues: cues.map((cue, index) => ({ ...cue, ...items[index] })),
         quota: { limit: quota.limit, used: quota.used }
       }
@@ -129,7 +152,7 @@ function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, sho
       fail(res, 404, 'episode_not_found')
       return null
     }
-    if (!annotator.enabled) {
+    if (!available()) {
       fail(res, 503, 'study_unavailable')
       return null
     }
@@ -147,13 +170,18 @@ function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, sho
     if (!access) return
     const sentences = splitSentences(access.episode.summary && access.episode.summary.en)
     if (sentences.length === 0) return fail(res, 404, 'nothing_to_study')
+    // 事先標好的優先:品質最好,而且不用算
+    const curated = shows.study(access.showId, access.number, access.episode.number, sentences)
     const key = `summary:${access.showId}:${access.number}:${access.episode.number}`
-    const items = await annotated(res, key, sentences)
+    const items = curated || (await annotated(res, key, sentences))
     if (!items) return
     res.set('Cache-Control', 'no-store')
     return res.json({
       success: true,
-      data: { sentences: sentences.map((text, index) => ({ text, ...items[index] })) }
+      data: {
+        mode: curated ? 'curated' : liveMode(),
+        sentences: sentences.map((text, index) => ({ text, zh: items[index].zh, vocab: items[index].vocab }))
+      }
     })
   })
 
@@ -172,9 +200,25 @@ function mountStudyRoutes(app, { viewer, plans, tokens, clipcafe, annotator, sho
     res.set('Cache-Control', 'no-store')
     return res.json({
       success: true,
-      data: { page, pages, lines: slice.map((cue, index) => ({ ...cue, ...items[index] })) }
+      data: { mode: liveMode(), page, pages, lines: slice.map((cue, index) => ({ ...cue, ...items[index] })) }
     })
   })
 }
 
-module.exports = { mountStudyRoutes, createDailyUsage }
+// 點字查詞:離線字典,不花錢。任何人都能查(訪客也可以),只限制頻率
+function mountDictionaryRoute(app, { dictionary, limiter, clientIp }) {
+  app.get('/api/dict/:word', (req, res) => {
+    if (!dictionary.enabled) return fail(res, 503, 'dictionary_unavailable')
+    if (!limiter.check(`dict:${clientIp(req)}`, 240).allowed) {
+      res.set('Retry-After', '30')
+      return fail(res, 429, 'too_many_requests')
+    }
+    const found = dictionary.lookup(req.params.word)
+    if (!found) return fail(res, 404, 'not_in_dictionary')
+    // 字典內容不會變,讓瀏覽器和 CDN 記一天
+    res.set('Cache-Control', 'public, max-age=86400')
+    return res.json({ success: true, data: found })
+  })
+}
+
+module.exports = { mountStudyRoutes, mountDictionaryRoute, createDailyUsage }

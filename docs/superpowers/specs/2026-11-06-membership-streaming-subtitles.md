@@ -12,7 +12,7 @@
 ## 決定
 
 - **等級**:`src/plans.js` 用 paywall-kit 定義 guest / free / pro。目前唯一的 Pro 專屬功能是下載。
-  訪客筆數 `FREE_LIMIT`(3),免費會員筆數 `MEMBER_LIMIT`(10),Pro 全部。兩者都是設定,不用改程式。
+  訪客筆數 `FREE_LIMIT`(3),免費會員筆數 `MEMBER_LIMIT`(5),Pro 全部。兩者都是設定,不用改程式。
 - **誰是 Pro**:以登入 token 的 email 問 PayGate `/api/subscription/check`,快取 60 秒。
   PayGate 失聯時沿用十分鐘內的答案,否則當免費會員。不接 webhook、不建資料庫。
 - **結帳**:`POST /api/billing/checkout` → PayGate `/api/newebpay/subscribe` → 回付款頁網址。

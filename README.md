@@ -38,7 +38,7 @@ cd takeenglish && npm start            # http://localhost:3300
 | 等級 | 誰 | 搜尋結果 | 字幕 | 下載 |
 |---|---|---|---|---|
 | guest | 沒登入 | 前 `FREE_LIMIT` 筆 | 有 | 無 |
-| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 10) | 有 | 無 |
+| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 5) | 有 | 無 |
 | pro | 付費會員 | 全部 | 有 | 有 |
 
 - 誰是 Pro 由 PayGate 說了算(`src/paygate.js`):每次用 email 問訂閱帳本,快取 60 秒,本站不存任何會員資料
@@ -89,7 +89,7 @@ npm test
 | PAYGATE_URL / PAYGATE_TOKEN | PayGate 位置與管理金鑰。兩個都有才開放結帳 |
 | PUBLIC_URL | 本站對外網址,付款完成後導回這裡。沒設不開放結帳 |
 | PRO_PLAN_ID | PayGate 上的方案代號,預設 `takeenglish:pro:monthly` |
-| MEMBER_LIMIT | 免費會員每次搜尋筆數,預設 10;設 0 = 不限 |
+| MEMBER_LIMIT | 免費會員每次搜尋筆數,預設 5;設 0 = 不限 |
 
 ## 看劇學習區(/watch)
 
@@ -112,6 +112,20 @@ npm test
 - 測試用網域(example.com 等)不會送出
 
 ## 逐句解析(點字就懂)
+
+預設完全不花錢,資料有三種來源,後端回應的 `mode` 會說是哪一種:
+
+| mode | 內容 | 成本 |
+|---|---|---|
+| `dictionary` | 只給原句,每個字點了查離線字典(音標、中文、常用程度) | 零 |
+| `curated` | 事先人工標好的中文與重點片語(看劇區的劇情介紹) | 零 |
+| `ai` | 標註引擎即時算中文與重點片語 | 每次呼叫都要錢,**預設關閉** |
+
+- 離線字典:`data/dictionary/dictionary.json`(約 5.5 萬字 + 3.2 萬個詞形,繁體),由 `scripts/build-dictionary.js` 從開源的 [ECDICT](https://github.com/skywind3000/ECDICT)(MIT)建出來;`data/dictionary/spoken.json` 是自己補的口語寫法(gonna、wanna…),可以直接增修。查詢 `GET /api/dict/:word`,人人可用
+- 事先標好的劇情解析:改 `data/shows/<劇>/season-<季>.study.src.json`,跑 `node scripts/stamp-study.js <劇> <季>` 檢查並產生站台讀的 `season-<季>.study.json`
+- 要開付費的標註引擎才設 `ANNOTATE_URL`;沒設就是上面兩種免費模式
+
+以下是開了標註引擎時的行為:
 
 - 英文句子送去標註引擎(ReelScript 的 `POST /api/internal/annotate`),拿回每句的中文和重點片語;`src/annotator.js` 把結果存在 `cache/annotations/`,同一段只算一次(每次呼叫都要花 AI 的錢)
 - 三個入口(`src/study-routes.js`):
