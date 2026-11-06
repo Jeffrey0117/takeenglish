@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>takeENGLISH:這句英文,影集都怎麼說?</title>
+  <meta name="description" content="搜一句英文片語,一次看幾十部影集電影的真實用法。不用背例句,直接看母語者怎麼講。">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+  <header class="site-head" id="site-head">
+    <a class="wordmark" href="/" id="home-link">take<span>ENGLISH</span></a>
+    <form class="mini-search" id="mini-search-form">
+      <input id="mini-search-input" type="search" placeholder="再搜一句…" autocomplete="off">
+      <button type="submit" aria-label="搜尋">⌕</button>
+    </form>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <h1 class="wordmark hero-mark">take<span>ENGLISH</span></h1>
+      <p class="tagline">這句英文,影集都怎麼說?</p>
+      <p class="sub">輸入一句片語,一次看幾十部影集電影的<strong>真實用法</strong>,不用背例句,直接看母語者怎麼講。</p>
+      <form class="search-box" id="search-form">
+        <input id="search-input" type="search" placeholder="試試 get a life" autocomplete="off" autofocus>
+        <button type="submit" class="go">看用法 →</button>
+      </form>
+      <div class="chips" id="hot-chips"></div>
+      <p class="brand-strip">看短片 × 學英文</p>
+    </section>
+
+    <section class="results hidden" id="results">
+      <div class="results-head">
+        <div id="results-status" class="status"></div>
+        <label class="loose"><input type="checkbox" id="loose-toggle"> 寬鬆搜尋</label>
+      </div>
+      <div class="chips related hidden" id="related-chips"></div>
+      <div class="grid" id="results-grid"></div>
+      <div class="more-wrap">
+        <button id="btn-more" class="more hidden">載入更多</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span class="wordmark small">take<span>ENGLISH</span></span>
+    <span class="foot-note">看短片×學英文 · by Jeffrey</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
