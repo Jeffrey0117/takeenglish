@@ -2,68 +2,130 @@ const { test } = require('node:test')
 const assert = require('node:assert')
 const crypto = require('crypto')
 const { createAuth } = require('../src/auth')
+const { createJwksCache } = require('../src/jwks')
+const {
+  createTestKeys,
+  makeEs256Token,
+  makeHs256Token,
+  makeUnsignedToken,
+  fakeJwksFetch,
+  futureExp
+} = require('./helpers')
 
 const SECRET = 'test-secret'
 const APP_ID = 'app_test'
+const KEYS = createTestKeys('kid-1')
 
-function b64url(buffer) {
-  return Buffer.from(buffer).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+function buildAuth({ appId = APP_ID, secret = SECRET, jwks = [KEYS.jwk] } = {}) {
+  const { state, fetchImpl } = fakeJwksFetch(jwks)
+  const cache = createJwksCache({
+    url: 'http://jwks.test/api/jwks',
+    fetchImpl,
+    onError: () => {}
+  })
+  return { auth: createAuth({ appId, secret, jwks: cache }), state }
 }
 
-function makeToken(payload, secret = SECRET, alg = 'HS256') {
-  const head = b64url(JSON.stringify({ alg, typ: 'JWT' }))
-  const body = b64url(JSON.stringify(payload))
-  const sig = crypto.createHmac('sha256', secret).update(`${head}.${body}`).digest()
-  return `${head}.${body}.${b64url(sig)}`
-}
-
-const futureExp = Math.floor(Date.now() / 1000) + 3600
-
-test('valid token returns payload', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
-  const payload = auth.verifyToken(makeToken({ sub: 'u1', app: APP_ID, exp: futureExp }))
+test('valid ES256 token returns payload', async () => {
+  const { auth } = buildAuth()
+  const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, KEYS)
+  const payload = await auth.verifyToken(token)
   assert.strictEqual(payload.sub, 'u1')
 })
 
-test('tampered signature rejected', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
-  const token = makeToken({ sub: 'u1', app: APP_ID, exp: futureExp }, 'wrong-secret')
-  assert.strictEqual(auth.verifyToken(token), null)
+test('non-ASCII payload still verifies', async () => {
+  const { auth } = buildAuth()
+  const token = makeEs256Token({ sub: 'u1', name: '杰神', app: APP_ID, exp: futureExp() }, KEYS)
+  const payload = await auth.verifyToken(token)
+  assert.strictEqual(payload.name, '杰神')
 })
 
-test('expired token rejected', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
-  const token = makeToken({ sub: 'u1', app: APP_ID, exp: Math.floor(Date.now() / 1000) - 10 })
-  assert.strictEqual(auth.verifyToken(token), null)
+test('HS256 token signed with the real app secret is rejected', async () => {
+  const { auth } = buildAuth()
+  const claims = { sub: 'victim', app: APP_ID, exp: futureExp() }
+  assert.strictEqual(await auth.verifyToken(makeHs256Token(claims, SECRET)), null)
+  assert.strictEqual(
+    await auth.verifyToken(makeHs256Token(claims, SECRET, { kid: KEYS.kid })),
+    null
+  )
 })
 
-test('token for another app rejected', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
-  const token = makeToken({ sub: 'u1', app: 'app_other', exp: futureExp })
-  assert.strictEqual(auth.verifyToken(token), null)
+test('alg none is rejected', async () => {
+  const { auth } = buildAuth()
+  const token = makeUnsignedToken({ sub: 'u1', app: APP_ID, exp: futureExp() }, { kid: KEYS.kid })
+  assert.strictEqual(await auth.verifyToken(token), null)
 })
 
-test('garbage and missing secret rejected', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
-  assert.strictEqual(auth.verifyToken('not.a.token'), null)
-  assert.strictEqual(auth.verifyToken(''), null)
-  const noSecret = createAuth({ appId: APP_ID, secret: '' })
-  assert.strictEqual(noSecret.verifyToken(makeToken({ sub: 'u1', app: APP_ID })), null)
+test('ES256 token signed by a different key is rejected', async () => {
+  const { auth } = buildAuth()
+  const attacker = createTestKeys(KEYS.kid)
+  const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, attacker)
+  assert.strictEqual(await auth.verifyToken(token), null)
+})
+
+test('tampered payload is rejected', async () => {
+  const { auth } = buildAuth()
+  const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, KEYS)
+  const [head, , sig] = token.split('.')
+  const forgedBody = Buffer.from(
+    JSON.stringify({ sub: 'admin', app: APP_ID, exp: futureExp() })
+  ).toString('base64url')
+  assert.strictEqual(await auth.verifyToken(`${head}.${forgedBody}.${sig}`), null)
+})
+
+test('unknown kid is rejected', async () => {
+  const { auth } = buildAuth()
+  const stranger = createTestKeys('kid-unknown')
+  const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, stranger)
+  assert.strictEqual(await auth.verifyToken(token), null)
+})
+
+test('expired token and token without exp are rejected', async () => {
+  const { auth } = buildAuth()
+  const expired = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp(-10) }, KEYS)
+  const noExp = makeEs256Token({ sub: 'u1', app: APP_ID }, KEYS)
+  assert.strictEqual(await auth.verifyToken(expired), null)
+  assert.strictEqual(await auth.verifyToken(noExp), null)
+})
+
+test('token for another app is rejected', async () => {
+  const { auth } = buildAuth()
+  const token = makeEs256Token({ sub: 'u1', app: 'app_other', exp: futureExp() }, KEYS)
+  assert.strictEqual(await auth.verifyToken(token), null)
+})
+
+test('missing appId config rejects every token', async () => {
+  const { auth } = buildAuth({ appId: '' })
+  const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, KEYS)
+  assert.strictEqual(await auth.verifyToken(token), null)
+})
+
+test('garbage input is rejected', async () => {
+  const { auth } = buildAuth()
+  assert.strictEqual(await auth.verifyToken('not.a.token'), null)
+  assert.strictEqual(await auth.verifyToken('only-one-part'), null)
+  assert.strictEqual(await auth.verifyToken(''), null)
+  assert.strictEqual(await auth.verifyToken(undefined), null)
+})
+
+test('JWKS endpoint down means not logged in, never a throw', async () => {
+  const { auth, state } = buildAuth()
+  state.fail = true
+  const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, KEYS)
+  assert.strictEqual(await auth.verifyToken(token), null)
 })
 
 test('extractBearer', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
+  const { auth } = buildAuth()
   assert.strictEqual(auth.extractBearer('Bearer abc'), 'abc')
   assert.strictEqual(auth.extractBearer('abc'), null)
   assert.strictEqual(auth.extractBearer(undefined), null)
 })
 
 test('webhook signature verify', () => {
-  const auth = createAuth({ appId: APP_ID, secret: SECRET })
+  const { auth } = buildAuth()
   const body = Buffer.from('{"event":"user.login"}')
   const sig = crypto.createHmac('sha256', SECRET).update(body).digest('hex')
   assert.strictEqual(auth.verifyWebhookSignature(body, sig), true)
   assert.strictEqual(auth.verifyWebhookSignature(body, 'bad'), false)
 })
-
-module.exports = { makeToken }

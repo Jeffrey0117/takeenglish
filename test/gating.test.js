@@ -2,10 +2,18 @@ const { test } = require('node:test')
 const assert = require('node:assert')
 const { createApp } = require('../src/app')
 const { createAuth } = require('../src/auth')
-const { makeToken } = require('./auth.test')
+const { createJwksCache } = require('../src/jwks')
+const {
+  createTestKeys,
+  makeEs256Token,
+  makeHs256Token,
+  fakeJwksFetch,
+  futureExp
+} = require('./helpers')
 
 const SECRET = 'test-secret'
 const APP_ID = 'app_test'
+const KEYS = createTestKeys('kid-1')
 
 function fakeClipcafe() {
   const calls = []
@@ -25,9 +33,11 @@ function fakeClipcafe() {
 
 function startApp({ freeLimit = 3 } = {}) {
   const clipcafe = fakeClipcafe()
+  const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
+  const jwks = createJwksCache({ url: 'http://jwks.test/api/jwks', fetchImpl })
   const app = createApp({
     clipcafe,
-    auth: createAuth({ appId: APP_ID, secret: SECRET }),
+    auth: createAuth({ appId: APP_ID, secret: SECRET, jwks }),
     freeLimit,
     letmeuse: { appId: APP_ID, baseUrl: 'https://example.com' }
   })
@@ -59,11 +69,7 @@ test('anonymous search is capped at freeLimit and flagged limited', async () => 
 test('authenticated search gets full page', async () => {
   const { server, base } = await startApp()
   try {
-    const token = makeToken({
-      sub: 'u1',
-      app: APP_ID,
-      exp: Math.floor(Date.now() / 1000) + 3600
-    })
+    const token = makeEs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, KEYS)
     const res = await fetch(`${base}/api/search?q=get+a+life&size=30`, {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -75,19 +81,22 @@ test('authenticated search gets full page', async () => {
   }
 })
 
-test('forged token stays limited', async () => {
+test('forged tokens stay limited', async () => {
   const { server, base } = await startApp()
   try {
-    const forged = makeToken(
-      { sub: 'hacker', app: APP_ID, exp: Math.floor(Date.now() / 1000) + 3600 },
-      'wrong-secret'
-    )
-    const res = await fetch(`${base}/api/search?q=x&size=30`, {
-      headers: { Authorization: `Bearer ${forged}` }
-    })
-    const body = await res.json()
-    assert.strictEqual(body.data.results.length, 3)
-    assert.strictEqual(body.data.limited, true)
+    const claims = { sub: 'hacker', app: APP_ID, exp: futureExp() }
+    const forgedTokens = [
+      makeHs256Token(claims, SECRET),
+      makeEs256Token(claims, createTestKeys(KEYS.kid))
+    ]
+    for (const forged of forgedTokens) {
+      const res = await fetch(`${base}/api/search?q=x&size=30`, {
+        headers: { Authorization: `Bearer ${forged}` }
+      })
+      const body = await res.json()
+      assert.strictEqual(body.data.results.length, 3)
+      assert.strictEqual(body.data.limited, true)
+    }
   } finally {
     server.close()
   }
@@ -110,13 +119,15 @@ test('/api/me requires valid token', async () => {
   try {
     const anon = await fetch(`${base}/api/me`)
     assert.strictEqual(anon.status, 401)
-    const token = makeToken({
-      sub: 'u1',
-      name: 'Jeff',
-      email: 'j@x.com',
-      app: APP_ID,
-      exp: Math.floor(Date.now() / 1000) + 3600
-    })
+
+    const forged = makeHs256Token({ sub: 'u1', app: APP_ID, exp: futureExp() }, SECRET)
+    const denied = await fetch(`${base}/api/me`, { headers: { Authorization: `Bearer ${forged}` } })
+    assert.strictEqual(denied.status, 401)
+
+    const token = makeEs256Token(
+      { sub: 'u1', name: 'Jeff', email: 'j@x.com', app: APP_ID, exp: futureExp() },
+      KEYS
+    )
     const ok = await fetch(`${base}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
     const body = await ok.json()
     assert.strictEqual(body.data.id, 'u1')

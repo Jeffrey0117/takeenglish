@@ -13,29 +13,43 @@ function safeJsonParse(buffer) {
   }
 }
 
-// LetMeUse 用 HS256 + app secret 簽 token;擋資料的地方一定要驗簽章,
-// 只 decode 不驗 = 任何人自編 payload 就能登入
-function createAuth({ appId, secret }) {
-  function verifyToken(token) {
-    if (!secret || !token || typeof token !== 'string') return null
+const ES256_SIGNATURE_BYTES = 64
+
+function verifyEs256(signingInput, signature, publicKey) {
+  if (signature.length !== ES256_SIGNATURE_BYTES) return false
+  try {
+    return crypto.verify(
+      'sha256',
+      Buffer.from(signingInput),
+      { key: publicKey, dsaEncoding: 'ieee-p1363' },
+      signature
+    )
+  } catch {
+    return false
+  }
+}
+
+// LetMeUse 用 ES256 簽 access token,公鑰從 JWKS 拿。這裡只收 ES256:
+// HS256(app secret)一律拒收 — secret 一外洩,任何人都能自簽任意用戶的 token;
+// alg none 同理。沒設 appId 也一律拒收,因為 JWKS 是所有 LetMeUse app 共用的,
+// 不比對 app claim 就等於別的 app 的 token 也能進來。
+function createAuth({ appId, secret, jwks }) {
+  async function verifyToken(token) {
+    if (!appId || !jwks || !token || typeof token !== 'string') return null
     const parts = token.split('.')
     if (parts.length !== 3) return null
 
     const header = safeJsonParse(b64urlDecode(parts[0]))
-    if (!header || header.alg !== 'HS256') return null
+    if (!header || header.alg !== 'ES256') return null
 
-    const expected = crypto
-      .createHmac('sha256', secret)
-      .update(`${parts[0]}.${parts[1]}`)
-      .digest()
-    const actual = b64urlDecode(parts[2])
-    if (expected.length !== actual.length) return null
-    if (!crypto.timingSafeEqual(expected, actual)) return null
+    const publicKey = await jwks.getKey(header.kid)
+    if (!publicKey) return null
+    if (!verifyEs256(`${parts[0]}.${parts[1]}`, b64urlDecode(parts[2]), publicKey)) return null
 
     const payload = safeJsonParse(b64urlDecode(parts[1]))
-    if (!payload) return null
-    if (payload.exp && payload.exp * 1000 < Date.now()) return null
-    if (appId && payload.app !== appId) return null
+    if (!payload || typeof payload !== 'object') return null
+    if (typeof payload.exp !== 'number' || payload.exp * 1000 < Date.now()) return null
+    if (payload.app !== appId) return null
     return payload
   }
 

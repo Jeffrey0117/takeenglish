@@ -22,7 +22,9 @@ cd takeenglish && npm start            # http://localhost:3300
 ## 免費/登入分層
 
 - 未登入:每次搜尋只回前 `FREE_LIMIT` 筆(預設 3),結果帶 `limited: true`,前端顯示解鎖卡
-- 登入(LetMeUse):完整結果。token 走 `Authorization: Bearer`,後端 HS256 驗簽(src/auth.js),偽造/過期/別的 app 的 token 一律當未登入
+- 登入(LetMeUse):完整結果。token 走 `Authorization: Bearer`,後端用 LetMeUse 的 JWKS 公鑰驗 ES256 簽章(src/auth.js + src/jwks.js),偽造/過期/別的 app 的 token 一律當未登入
+- 只收 ES256:HS256(app secret 自簽)和 alg none 一律拒收。`LETMEUSE_APP_SECRET` 只剩驗 webhook 簽章一個用途;沒設 `LETMEUSE_APP_ID` 時所有 token 無效
+- JWKS 位置預設 `{LETMEUSE_BASE_URL}/api/jwks`,同機部署可用 `LETMEUSE_JWKS_URL` 改打 localhost
 - 限制做在 server 端 — 未登入連 upstream 都只要 3 筆,F12 看不到多的
 
 ### 啟用登入(在有 letmeuse MCP 的機器上做一次)

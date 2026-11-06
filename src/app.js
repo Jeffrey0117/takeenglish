@@ -20,9 +20,17 @@ function createApp({ clipcafe, auth, freeLimit = 3, letmeuse = {} }) {
 
   app.use(express.json({ limit: '1mb' }))
 
-  function currentUser(req) {
+  // 驗不過、驗到一半出錯,一律當未登入(fail closed)
+  async function currentUser(req) {
     const token = auth.extractBearer(req.get('Authorization'))
-    return token ? auth.verifyToken(token) : null
+    if (!token) return null
+    try {
+      return await auth.verifyToken(token)
+    } catch (err) {
+      process.stderr.write(`[auth] verify failed: ${err.message}
+`)
+      return null
+    }
   }
 
   app.get('/api/config', (req, res) => {
@@ -38,8 +46,8 @@ function createApp({ clipcafe, auth, freeLimit = 3, letmeuse = {} }) {
     })
   })
 
-  app.get('/api/me', (req, res) => {
-    const user = currentUser(req)
+  app.get('/api/me', async (req, res) => {
+    const user = await currentUser(req)
     if (!user) {
       return res.status(401).json({ success: false, error: 'unauthorized' })
     }
@@ -55,7 +63,7 @@ function createApp({ clipcafe, auth, freeLimit = 3, letmeuse = {} }) {
       return res.status(400).json({ success: false, error })
     }
 
-    const user = currentUser(req)
+    const user = await currentUser(req)
     const gated = !user && freeLimit > 0
     const effective = gated
       ? { ...params, from: 0, size: Math.min(params.size, freeLimit) }
