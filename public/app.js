@@ -527,6 +527,8 @@ async function initAuth() {
   // 方案區塊不用等登入元件,設定到了就先畫
   renderPlans($('#plans'))
   $('#plans-link').classList.toggle('hidden', !authEnabled())
+  // 從別頁點「方案」過來(/#plans):區塊是這時候才畫出來的,要自己捲過去
+  if (location.hash === '#plans') $('#plans').scrollIntoView()
   const { appId, baseUrl } = state.config.letmeuse
   if (!appId || !baseUrl) return
 
@@ -882,6 +884,14 @@ $('#modal-close').onclick = closeModal
 $('#plans-link').onclick = (e) => {
   e.preventDefault()
   openPlans()
+}
+// 導覽列的「方案」:首頁直接捲到方案區塊;搜尋結果頁那一塊是藏起來的,改開視窗
+for (const link of document.querySelectorAll('.nav-plans')) {
+  link.onclick = (e) => {
+    e.preventDefault()
+    if (document.body.classList.contains('searching')) openPlans()
+    else $('#plans').scrollIntoView({ behavior: 'smooth' })
+  }
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal()
