@@ -259,7 +259,12 @@ async function search(query, { append = false } = {}) {
       $('#related-chips').classList.remove('hidden')
     }
     if (!append && (data.results || []).length === 0) {
-      grid.innerHTML = '<p class="status">沒搜到這句,試試「寬鬆搜尋」,或換個講法</p>'
+      grid.innerHTML = `
+        <div class="empty-state">
+          <img src="empty-cat.png" alt="">
+          <p>沒搜到這句,試試「寬鬆搜尋」,或換個講法</p>
+        </div>
+      `
     }
 
     if (data.limited) {

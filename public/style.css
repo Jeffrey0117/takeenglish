@@ -183,13 +183,20 @@ body.searching .hero { display: none; }
 }
 .search-box .go:hover { background: #ffe14d; }
 
-.brand-strip {
+.brand-strip-img {
   margin-top: 46px;
-  color: var(--yellow);
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 6px;
+  height: 76px;
+  width: auto;
+  display: inline-block;
 }
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 0 20px;
+}
+.empty-state img { width: 150px; height: 150px; border: 2px solid var(--line); }
+.empty-state p { color: var(--muted); font-size: 15px; font-weight: 700; margin-top: 16px; }
 
 /* ---- chips ---- */
 .chips {
