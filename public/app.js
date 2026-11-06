@@ -787,8 +787,7 @@ async function toggleStudy(card, video, clip, btn) {
       closeTips(panel)
       attachCaptions(video, clip.subs)
       video.dataset.started = '1'
-      video.currentTime = cue.start
-      video.play().catch(() => {})
+      playFrom(video, cue.start)
     }
     panel.append(row)
     return { row, start: cue.start, end: cue.end }
@@ -810,6 +809,18 @@ async function toggleStudy(card, video, clip, btn) {
       line.row.classList.toggle('active', active)
     }
   }, { signal: following.signal })
+}
+
+// 從指定的秒數開始播。影片還沒載入時直接設時間不會生效(載入後又回到 0),
+// 所以沒載入就先等它知道片長,再跳過去。
+function playFrom(video, seconds) {
+  const jump = () => {
+    video.currentTime = seconds
+    video.play().catch(() => {})
+  }
+  if (video.readyState >= 1) return jump()
+  video.addEventListener('loadedmetadata', jump, { once: true })
+  video.play().catch(() => {})
 }
 
 // 導覽列加上通往姊妹站的連結;已登入就帶著登入狀態過去(不用再登入一次)
