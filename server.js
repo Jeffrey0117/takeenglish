@@ -4,12 +4,24 @@ loadEnv(__dirname)
 
 const { createApp } = require('./src/app')
 const { createClipcafeClient } = require('./src/clipcafe-client')
+const { createAuth } = require('./src/auth')
 
 const PORT = Number.parseInt(process.env.PORT || '', 10) || 3300
 const CLIPCAFE_API_URL = process.env.CLIPCAFE_API_URL || 'http://localhost:3100'
+const LETMEUSE_BASE_URL = process.env.LETMEUSE_BASE_URL || 'https://letmeuse.isnowfriend.com'
+const FREE_LIMIT = Number.parseInt(process.env.FREE_LIMIT || '', 10)
 
 const app = createApp({
-  clipcafe: createClipcafeClient({ baseUrl: CLIPCAFE_API_URL })
+  clipcafe: createClipcafeClient({ baseUrl: CLIPCAFE_API_URL }),
+  auth: createAuth({
+    appId: process.env.LETMEUSE_APP_ID,
+    secret: process.env.LETMEUSE_APP_SECRET
+  }),
+  freeLimit: Number.isInteger(FREE_LIMIT) ? FREE_LIMIT : 3,
+  letmeuse: {
+    appId: process.env.LETMEUSE_APP_ID || null,
+    baseUrl: LETMEUSE_BASE_URL
+  }
 })
 
 const server = app.listen(PORT, () => {

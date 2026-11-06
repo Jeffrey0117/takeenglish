@@ -19,12 +19,29 @@ cd takeenglish && npm start            # http://localhost:3300
 - 寬鬆搜尋(slop=3)、載入更多(分頁)、`?q=` 可分享連結
 - 響應式,手機可用
 
+## 免費/登入分層
+
+- 未登入:每次搜尋只回前 `FREE_LIMIT` 筆(預設 3),結果帶 `limited: true`,前端顯示解鎖卡
+- 登入(LetMeUse):完整結果。token 走 `Authorization: Bearer`,後端 HS256 驗簽(src/auth.js),偽造/過期/別的 app 的 token 一律當未登入
+- 限制做在 server 端 — 未登入連 upstream 都只要 3 筆,F12 看不到多的
+
+### 啟用登入(在有 letmeuse MCP 的機器上做一次)
+
+1. `letmeuse_create_app`:name `takeenglish`,domains `["https://{正式網域}", "http://localhost:3300"]`,webhookUrl `https://{正式網域}/api/webhooks/letmeuse`
+2. 把回傳的 id/secret 設進環境變數(本地 .env 或 CloudPipe 的 set_project_env):
+   `LETMEUSE_APP_ID` / `LETMEUSE_APP_SECRET`
+3. 前端會自己從 `/api/config` 拿 appId 載入 SDK,不用改 code
+
 ## 設定(.env,可省略)
 
 | 變數 | 預設 |
 |---|---|
 | PORT | 3300 |
 | CLIPCAFE_API_URL | http://localhost:3100 |
+| FREE_LIMIT | 3(0 = 不限制) |
+| LETMEUSE_APP_ID | (空 = 隱藏登入鈕) |
+| LETMEUSE_APP_SECRET | (空 = 所有 token 無效) |
+| LETMEUSE_BASE_URL | https://letmeuse.isnowfriend.com |
 
 ## 測試
 

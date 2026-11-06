@@ -14,7 +14,9 @@ const state = {
   query: '',
   from: 0,
   total: 0,
-  loading: false
+  loading: false,
+  config: { letmeuse: { appId: null, baseUrl: null }, freeLimit: 3 },
+  user: null
 }
 
 const $ = (sel) => document.querySelector(sel)
@@ -98,13 +100,122 @@ function clipCard(clip, query) {
   return card
 }
 
+// ---- 登入 (LetMeUse) ----
+
+function sdk() {
+  return window.letmeuse
+}
+
+function getToken() {
+  const s = sdk()
+  return s && s.ready && state.user ? s.getToken() : null
+}
+
+function authEnabled() {
+  return Boolean(state.config.letmeuse.appId)
+}
+
+function renderAuth() {
+  for (const area of [$('#auth-head'), $('#auth-corner')]) {
+    area.replaceChildren()
+    if (!authEnabled()) continue
+    if (state.user) {
+      const name = document.createElement('span')
+      name.className = 'auth-user'
+      name.textContent = state.user.name || state.user.email || ''
+      const logout = document.createElement('button')
+      logout.className = 'auth-btn quiet'
+      logout.textContent = '登出'
+      logout.onclick = () => sdk()?.logout()
+      area.append(name, logout)
+    } else {
+      const login = document.createElement('button')
+      login.className = 'auth-btn'
+      login.textContent = '登入'
+      login.onclick = () => sdk()?.login()
+      area.appendChild(login)
+    }
+  }
+}
+
+function waitForLetMeUse() {
+  return new Promise((resolve) => {
+    if (sdk()?.ready) return resolve()
+    const check = setInterval(() => {
+      if (sdk()?.ready) {
+        clearInterval(check)
+        resolve()
+      }
+    }, 100)
+    setTimeout(() => {
+      clearInterval(check)
+      resolve()
+    }, 5000)
+  })
+}
+
+async function initAuth() {
+  try {
+    const res = await fetch('/api/config')
+    const body = await res.json()
+    if (body.success) state.config = body.data
+  } catch {
+    return
+  }
+  const { appId, baseUrl } = state.config.letmeuse
+  if (!appId || !baseUrl) return
+
+  const script = document.createElement('script')
+  script.src = `${baseUrl}/letmeuse.js`
+  script.dataset.appId = appId
+  script.dataset.theme = 'dark'
+  script.dataset.accent = '#ffd60a'
+  script.dataset.locale = 'zh'
+  script.dataset.mode = 'modal'
+  document.head.appendChild(script)
+
+  await waitForLetMeUse()
+  const s = sdk()
+  if (!s?.ready) return
+  state.user = s.user
+  renderAuth()
+  s.onAuthChange((user) => {
+    state.user = user
+    renderAuth()
+    if (state.query) search(state.query)
+  })
+}
+
+// ---- 搜尋 ----
+
 async function fetchPage() {
   const loose = $('#loose-toggle').checked
   const url = `/api/search?q=${encodeURIComponent(state.query)}&from=${state.from}&size=${PAGE_SIZE}&slop=${loose ? 3 : 0}`
-  const res = await fetch(url)
+  const token = getToken()
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
   const body = await res.json()
   if (!body.success) throw new Error(body.error || `HTTP ${res.status}`)
   return body.data
+}
+
+function lockPanel(total) {
+  const panel = document.createElement('div')
+  panel.className = 'lock-panel'
+  const count = Math.max(total - state.config.freeLimit, 0)
+  panel.innerHTML = `
+    <p class="lock-title">還有 <b>${count.toLocaleString()}</b> 個片段沒看到</p>
+    <p class="lock-sub">免費版顯示前 ${state.config.freeLimit} 筆,登入就能解鎖全部結果</p>
+  `
+  if (authEnabled()) {
+    const btn = document.createElement('button')
+    btn.className = 'auth-btn'
+    btn.textContent = '免費登入解鎖'
+    btn.onclick = () => sdk()?.login()
+    panel.appendChild(btn)
+  }
+  return panel
 }
 
 async function search(query, { append = false } = {}) {
@@ -148,9 +259,18 @@ async function search(query, { append = false } = {}) {
       $('#related-chips').classList.remove('hidden')
     }
     if (!append && (data.results || []).length === 0) {
-      grid.innerHTML = '<p class="status">沒搜到這句 — 試試「寬鬆搜尋」,或換個講法</p>'
+      grid.innerHTML = '<p class="status">沒搜到這句,試試「寬鬆搜尋」,或換個講法</p>'
     }
-    moreBtn.classList.toggle('hidden', state.from >= state.total || (data.results || []).length === 0)
+
+    if (data.limited) {
+      grid.appendChild(lockPanel(data.total))
+      moreBtn.classList.add('hidden')
+    } else {
+      moreBtn.classList.toggle(
+        'hidden',
+        state.from >= state.total || (data.results || []).length === 0
+      )
+    }
   } catch (err) {
     status.className = 'status error'
     status.textContent = err.message
@@ -183,6 +303,8 @@ renderChips($('#hot-chips'), HOT_PHRASES, (p) => {
   $('#search-input').value = p
   search(p)
 })
+
+initAuth()
 
 const initial = new URLSearchParams(location.search).get('q')
 if (initial) {

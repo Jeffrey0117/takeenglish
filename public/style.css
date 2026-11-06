@@ -78,6 +78,45 @@ body.searching .site-head { display: flex; }
   cursor: pointer;
 }
 
+/* ---- auth ---- */
+.auth-area { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.auth-corner {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  margin-left: 0;
+}
+body.searching .auth-corner { display: none; }
+.auth-user { color: var(--muted); font-size: 13px; font-weight: 700; }
+.auth-btn {
+  background: transparent;
+  border: 2px solid var(--yellow);
+  color: var(--yellow);
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.auth-btn:hover { background: var(--yellow); color: #000; }
+.auth-btn.quiet {
+  border-color: var(--line);
+  color: var(--muted);
+  font-weight: 700;
+}
+.auth-btn.quiet:hover { border-color: var(--yellow); color: var(--yellow); background: transparent; }
+
+.lock-panel {
+  grid-column: 1 / -1;
+  border: 2px solid var(--yellow);
+  padding: 34px 24px;
+  text-align: center;
+}
+.lock-panel .lock-title { font-size: 19px; font-weight: 900; }
+.lock-panel .lock-title b { color: var(--yellow); }
+.lock-panel .lock-sub { color: var(--muted); font-size: 14px; font-weight: 600; margin-top: 8px; }
+.lock-panel .auth-btn { margin-top: 18px; padding: 11px 34px; font-size: 15px; }
+
 /* ---- hero ---- */
 .hero {
   text-align: center;
@@ -252,10 +291,9 @@ body.searching .hero { display: none; }
 .clip-body { padding: 14px 15px 15px; }
 .clip-text { font-size: 14.5px; line-height: 1.6; font-weight: 600; }
 .clip-text mark {
-  background: rgba(255, 214, 10, 0.12);
+  background: none;
   color: var(--yellow);
   font-weight: 800;
-  padding: 0 2px;
 }
 .clip-meta {
   display: flex;
