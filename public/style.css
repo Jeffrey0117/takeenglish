@@ -29,9 +29,7 @@ main { flex: 1; width: 100%; }
   white-space: nowrap;
 }
 .wordmark span {
-  background: var(--yellow);
-  color: #000;
-  padding: 0 0.18em;
+  color: var(--yellow);
   margin-left: 2px;
 }
 
