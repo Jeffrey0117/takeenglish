@@ -68,34 +68,95 @@ function episodeLabel(clip) {
   return `S${s}E${e}`
 }
 
+// 滑進視野才載入 metadata + 跳到首幀當縮圖,整支影片不會先下載
+const thumbObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue
+      const video = entry.target
+      thumbObserver.unobserve(video)
+      if (video.dataset.thumbed) continue
+      video.dataset.thumbed = '1'
+      video.preload = 'metadata'
+      video.addEventListener(
+        'loadedmetadata',
+        () => {
+          try {
+            video.currentTime = Math.min(0.5, (video.duration || 1) / 3)
+          } catch {
+            /* 首幀失敗就維持黑底 */
+          }
+        },
+        { once: true }
+      )
+      video.load()
+    }
+  },
+  { rootMargin: '250px' }
+)
+
 function clipCard(clip, query) {
   const card = document.createElement('article')
   card.className = 'clip-card'
   card.innerHTML = `
     <div class="player">
-      <video preload="none" playsinline src="${escapeHtml(clip.mp4 || '')}"></video>
+      <video preload="none" playsinline disablepictureinpicture src="${escapeHtml(clip.mp4 || '')}"></video>
       <div class="play-badge"></div>
+      <div class="progress"><div class="progress-fill"></div></div>
     </div>
     <div class="clip-body">
       <p class="clip-text">${highlight(clip.text || '', query)}</p>
       <div class="clip-meta">
         <span class="show">${escapeHtml(clip.movieTitle || '')} ${episodeLabel(clip)}</span>
-        <span>${clip.duration ? `${clip.duration}s` : ''}</span>
+        <span class="meta-right">${clip.duration ? `${clip.duration}s` : ''}</span>
       </div>
     </div>
   `
   const player = card.querySelector('.player')
   const video = card.querySelector('video')
+  const fill = card.querySelector('.progress-fill')
+
+  for (const el of [player, video]) {
+    el.oncontextmenu = (e) => e.preventDefault()
+  }
+  thumbObserver.observe(video)
+
   player.onclick = () => {
-    if (player.classList.contains('playing')) return
-    player.classList.add('playing')
-    video.controls = true
-    video.play().catch(() => {})
+    if (video.paused) {
+      video.play().catch(() => {})
+    } else {
+      video.pause()
+    }
   }
   video.onplay = () => {
+    player.classList.add('playing')
     for (const other of document.querySelectorAll('video')) {
       if (other !== video) other.pause()
     }
+  }
+  video.onpause = () => player.classList.remove('playing')
+  video.ontimeupdate = () => {
+    if (video.duration) fill.style.width = `${(video.currentTime / video.duration) * 100}%`
+  }
+  video.onended = () => {
+    player.classList.remove('playing')
+    fill.style.width = '0%'
+  }
+
+  const metaRight = card.querySelector('.meta-right')
+  if (clip.mp4 && authEnabled()) {
+    const dl = document.createElement('button')
+    dl.className = 'dl-btn'
+    dl.textContent = '⬇ 下載'
+    dl.onclick = (e) => {
+      e.stopPropagation()
+      if (state.user) {
+        window.open(clip.mp4, '_blank')
+      } else {
+        sdk()?.login()
+      }
+    }
+    metaRight.appendChild(dl)
   }
   return card
 }

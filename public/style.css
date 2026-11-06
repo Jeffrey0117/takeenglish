@@ -300,6 +300,24 @@ body.searching .hero { display: none; }
 .player:hover .play-badge::after { transform: scale(1.08); }
 .player.playing .play-badge { display: none; }
 
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.player.playing .progress,
+.player:hover .progress { opacity: 1; }
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--yellow);
+}
+
 .clip-body { padding: 14px 15px 15px; }
 .clip-text { font-size: 14.5px; line-height: 1.6; font-weight: 600; }
 .clip-text mark {
@@ -319,6 +337,18 @@ body.searching .hero { display: none; }
   margin-top: 10px;
 }
 .clip-meta .show { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clip-meta .meta-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.dl-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dl-btn:hover { border-color: var(--yellow); color: var(--yellow); }
 
 .more-wrap { text-align: center; margin-top: 38px; }
 .more {
