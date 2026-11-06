@@ -377,14 +377,20 @@ function waitForLetMeUse() {
   })
 }
 
-async function initAuth() {
+// 站台設定(有沒有開登入、方案與價格)。卡片要先知道這些才畫得對,所以搜尋會等它
+async function loadConfig() {
   try {
     const res = await fetch('/api/config')
     const body = await res.json()
     if (body.success) state.config = { ...state.config, ...body.data }
   } catch {
-    return
+    /* 拿不到設定就當沒開登入,搜尋照常 */
   }
+}
+const configReady = loadConfig()
+
+async function initAuth() {
+  await configReady
   const { appId, baseUrl } = state.config.letmeuse
   if (!appId || !baseUrl) return
 
@@ -576,6 +582,7 @@ async function downloadClip(clip, btn) {
 // ---- 搜尋 ----
 
 async function fetchPage() {
+  await configReady
   const loose = $('#loose-toggle').checked
   const url = `/api/search?q=${encodeURIComponent(state.query)}&from=${state.from}&size=${PAGE_SIZE}&slop=${loose ? 3 : 0}`
   const token = getToken()
