@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>takeENGLISH:這句英文,影集都怎麼說?</title>
   <meta name="description" content="搜一句英文片語,一次看幾十部影集電影的真實用法。不用背例句,直接看母語者怎麼講。">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
@@ -59,6 +59,14 @@
     <span class="foot-note">看短片×學英文 · by Jeffrey</span>
   </footer>
 
-  <script src="app.js"></script>
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button class="modal-close" id="modal-close" aria-label="關閉">×</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="app.js?v=3"></script>
 </body>
 </html>

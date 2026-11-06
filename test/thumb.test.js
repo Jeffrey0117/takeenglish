@@ -3,6 +3,7 @@ const assert = require('node:assert')
 const { createApp } = require('../src/app')
 const { createAuth } = require('../src/auth')
 const { createClipcafeClient } = require('../src/clipcafe-client')
+const { TEST_TOKENS, clipId } = require('./helpers')
 
 function fakeClipcafe(thumbImpl) {
   const calls = []
@@ -20,6 +21,7 @@ function startApp(clipcafe) {
   const app = createApp({
     clipcafe,
     auth: createAuth({ appId: 'app_test', secret: 's', jwks: { getKey: async () => null } }),
+    tokens: TEST_TOKENS,
     freeLimit: 3,
     letmeuse: {}
   })
@@ -34,7 +36,7 @@ test('GET /thumb/:slug.jpg serves the upstream jpeg with a long cache lifetime',
   const clipcafe = fakeClipcafe(async () => ({ status: 200, body: Buffer.from('jpeg-bytes') }))
   const { server, base } = await startApp(clipcafe)
   try {
-    const res = await fetch(`${base}/thumb/some-clip.jpg`)
+    const res = await fetch(`${base}/thumb/${clipId('some-clip')}.jpg`)
     assert.strictEqual(res.status, 200)
     assert.strictEqual(res.headers.get('content-type'), 'image/jpeg')
     assert.match(res.headers.get('cache-control'), /max-age=31536000/)
@@ -52,7 +54,7 @@ test('GET /thumb/:slug.jpg rejects an invalid slug without calling upstream', as
   try {
     for (const bad of ['Bad_Slug', '..%2Fsecret', 'a'.repeat(201)]) {
       const res = await fetch(`${base}/thumb/${bad}.jpg`)
-      assert.strictEqual(res.status, 400)
+      assert.strictEqual(res.status, 404)
     }
     assert.strictEqual(clipcafe.calls.length, 0)
   } finally {
@@ -65,7 +67,7 @@ test('upstream misses and overload pass through uncached', async () => {
     const clipcafe = fakeClipcafe(async () => ({ status, body: null }))
     const { server, base } = await startApp(clipcafe)
     try {
-      const res = await fetch(`${base}/thumb/some-clip.jpg`)
+      const res = await fetch(`${base}/thumb/${clipId('some-clip')}.jpg`)
       assert.strictEqual(res.status, status)
       assert.strictEqual(res.headers.get('cache-control'), 'no-store')
     } finally {
@@ -78,7 +80,7 @@ test('any other upstream status becomes 502', async () => {
   const clipcafe = fakeClipcafe(async () => ({ status: 500, body: null }))
   const { server, base } = await startApp(clipcafe)
   try {
-    const res = await fetch(`${base}/thumb/some-clip.jpg`)
+    const res = await fetch(`${base}/thumb/${clipId('some-clip')}.jpg`)
     assert.strictEqual(res.status, 502)
     assert.strictEqual(res.headers.get('cache-control'), 'no-store')
   } finally {
@@ -92,7 +94,7 @@ test('an upstream connection failure becomes 502, not a hang or crash', async ()
   })
   const { server, base } = await startApp(clipcafe)
   try {
-    const res = await fetch(`${base}/thumb/some-clip.jpg`)
+    const res = await fetch(`${base}/thumb/${clipId('some-clip')}.jpg`)
     assert.strictEqual(res.status, 502)
     assert.strictEqual(res.headers.get('cache-control'), 'no-store')
   } finally {

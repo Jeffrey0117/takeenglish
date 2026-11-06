@@ -8,7 +8,8 @@ const {
   makeEs256Token,
   makeHs256Token,
   fakeJwksFetch,
-  futureExp
+  futureExp,
+  TEST_TOKENS
 } = require('./helpers')
 
 const SECRET = 'test-secret'
@@ -38,6 +39,7 @@ function startApp({ freeLimit = 3 } = {}) {
   const app = createApp({
     clipcafe,
     auth: createAuth({ appId: APP_ID, secret: SECRET, jwks }),
+    tokens: TEST_TOKENS,
     freeLimit,
     letmeuse: { appId: APP_ID, baseUrl: 'https://example.com' }
   })

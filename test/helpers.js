@@ -1,4 +1,9 @@
 const crypto = require('crypto')
+const { createMediaTokens } = require('../src/media-tokens')
+
+// 測試共用的媒體簽章;clipId(slug) = 對外的不透明代號
+const TEST_TOKENS = createMediaTokens({ secret: 'test-media-secret-'.padEnd(40, 'x') })
+const clipId = (slug) => TEST_TOKENS.seal('id', slug)
 
 function b64url(input) {
   return Buffer.from(input).toString('base64url')
@@ -49,6 +54,8 @@ function futureExp(seconds = 3600) {
 }
 
 module.exports = {
+  TEST_TOKENS,
+  clipId,
   createTestKeys,
   makeEs256Token,
   makeHs256Token,

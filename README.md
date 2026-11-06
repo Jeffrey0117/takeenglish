@@ -15,7 +15,9 @@ cd takeenglish && npm start            # http://localhost:3300
 
 - Hero 搜尋 + 熱門片語 chips
 - 結果卡片:點擊播放預覽、片語黃色高亮、劇名/季集/片長
-- 卡片縮圖:`/thumb/{slug}.jpg` 轉送 clipcafe-api 用 ffmpeg 抽好的首幀(長快取);拿不到圖時前端自動退回「載入影片 metadata 跳首幀」
+- 卡片縮圖:`/thumb/{id}.jpg` 轉送 clipcafe-api 用 ffmpeg 抽好的首幀(長快取);拿不到圖時前端自動退回「載入影片 metadata 跳首幀」
+- 字幕:播放時掛上片源的 WebVTT(`/sub/{id}/{lang}.vtt`),卡片上的 CC 鈕開關,偏好記在瀏覽器
+- 影片走自家串流:`/v/{token}` 由後端轉送(支援 Range),對外看不到片源網址
 - 相關搜尋 chips(clip.cafe 的 related + didYouMean)
 - 寬鬆搜尋(slop=3)、載入更多(分頁)、`?q=` 可分享連結
 - 響應式,手機可用
@@ -27,6 +29,31 @@ cd takeenglish && npm start            # http://localhost:3300
 - 只收 ES256:HS256(app secret 自簽)和 alg none 一律拒收。`LETMEUSE_APP_SECRET` 只剩驗 webhook 簽章一個用途;沒設 `LETMEUSE_APP_ID` 時所有 token 無效
 - JWKS 位置預設 `{LETMEUSE_BASE_URL}/api/jwks`,同機部署可用 `LETMEUSE_JWKS_URL` 改打 localhost
 - 限制做在 server 端 — 未登入連 upstream 都只要 3 筆,F12 看不到多的
+
+## 會員等級與付費
+
+等級定義只有一份:`src/plans.js`(用 paywall-kit)。後端用它擋功能,前端從 `/api/config` 拿同一份。
+
+| 等級 | 誰 | 搜尋結果 | 字幕 | 下載 |
+|---|---|---|---|---|
+| guest | 沒登入 | 前 `FREE_LIMIT` 筆 | 有 | 無 |
+| free | 登入的免費會員 | 全部(`MEMBER_LIMIT` 可收緊) | 有 | 無 |
+| pro | 付費會員 | 全部 | 有 | 有 |
+
+- 誰是 Pro 由 PayGate 說了算(`src/paygate.js`):每次用 email 問訂閱帳本,快取 60 秒,本站不存任何會員資料
+- PayGate 連不上:十分鐘內問過的沿用上次答案,其餘當免費會員,搜尋照常
+- 結帳 `POST /api/billing/checkout` 回付款頁網址(藍新定期定額,由 PayGate 建單);退訂 `POST /api/billing/cancel` 停止之後的扣款,已付期間用到期
+- Pro 價格只有 PayGate 的方案一個來源(`PRO_PLAN_ID`),程式裡不寫金額
+- 要加新的付費功能:在 `src/plans.js` 的 features 加欄位,後端用 `plans.can(tier, '功能')` 擋
+
+## 片源保護
+
+- 搜尋結果不帶 slug、mp4 網址或任何片源欄位;每支片對外只有我們自己簽的代號(`src/media-tokens.js`,AES-GCM)
+- 代號分三種用途且互不通用:`id`(縮圖/字幕,不過期)、`v`(播放,6 小時)、`dl`(下載,2 分鐘)
+- `/v/{token}`:過期即失效;別站嵌入、把網址貼到網址列直接開都回 403
+- `/dl/{token}`:只有 Pro 經 `POST /api/clips/{id}/download` 才拿得到
+- clipcafe-api 設了 `INTERNAL_API_KEY` 之後只認帶金鑰的請求,本站用 `CLIPCAFE_API_KEY` 帶同一把
+- 能播就能錄,這層擋的是「拿網址直接抓」和「繞過會員限制」,不是 DRM
 
 ### 啟用登入(在有 letmeuse MCP 的機器上做一次)
 
@@ -51,6 +78,17 @@ cd takeenglish && npm start            # http://localhost:3300
 ```
 npm test
 ```
+
+## 付費相關設定(.env)
+
+| 變數 | 說明 |
+|---|---|
+| MEDIA_SECRET | 影片/縮圖代號的簽章金鑰,至少 32 字元。沒設會每次啟動隨機產生,重啟後舊網址全失效 |
+| CLIPCAFE_API_KEY | 打 clipcafe-api 用的內部金鑰,要跟對方的 `INTERNAL_API_KEY` 相同 |
+| PAYGATE_URL / PAYGATE_TOKEN | PayGate 位置與管理金鑰。兩個都有才開放結帳 |
+| PUBLIC_URL | 本站對外網址,付款完成後導回這裡。沒設不開放結帳 |
+| PRO_PLAN_ID | PayGate 上的方案代號,預設 `takeenglish:pro:monthly` |
+| MEMBER_LIMIT | 免費會員每次搜尋筆數,預設 0 = 不限 |
 
 ## 之後再說
 
