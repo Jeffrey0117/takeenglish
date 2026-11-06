@@ -47,7 +47,8 @@ main { flex: 1; width: 100%; }
   background: var(--black);
   border-bottom: 3px solid var(--yellow);
 }
-.site-head .wordmark { font-size: 21px; }
+.site-head .wordmark { font-size: 21px; display: flex; align-items: center; gap: 10px; }
+.head-cat { width: 30px; height: 30px; display: block; }
 
 body.searching .site-head { display: flex; }
 
@@ -111,6 +112,10 @@ body.searching .auth-corner { display: none; }
   border: 2px solid var(--yellow);
   padding: 34px 24px;
   text-align: center;
+  background: #000 url('lock-cat.png') left center / contain no-repeat;
+}
+@media (max-width: 640px) {
+  .lock-panel { background-image: none; }
 }
 .lock-panel .lock-title { font-size: 19px; font-weight: 900; }
 .lock-panel .lock-title b { color: var(--yellow); }
@@ -126,6 +131,7 @@ body.searching .auth-corner { display: none; }
 }
 body.searching .hero { display: none; }
 
+.hero-cat { width: 96px; height: 96px; margin: 0 auto 22px; display: block; }
 .hero-mark { font-size: clamp(44px, 8vw, 72px); }
 .tagline {
   font-size: clamp(24px, 4vw, 34px);
