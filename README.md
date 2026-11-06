@@ -16,7 +16,8 @@ cd takeenglish && npm start            # http://localhost:3300
 - Hero 搜尋 + 熱門片語 chips
 - 結果卡片:點擊播放預覽、片語黃色高亮、劇名/季集/片長
 - 卡片縮圖:`/thumb/{id}.jpg` 轉送 clipcafe-api 用 ffmpeg 抽好的首幀(長快取);拿不到圖時前端自動退回「載入影片 metadata 跳首幀」
-- 字幕:播放時掛上片源的 WebVTT(`/sub/{id}/{lang}.vtt`),卡片上的 CC 鈕開關,偏好記在瀏覽器
+- 字幕:播放時掛上片源的 WebVTT(`/sub/{id}/{lang}.vtt`),卡片上的 CC 鈕開關,偏好記在瀏覽器;位置由 `public/app.js` 的 `CAPTION_BOTTOM_PERCENT` 決定
+- 方案區塊:首頁與「方案」視窗列出三個等級,內容來自 `/api/config`;文字集中在 `public/app.js` 的 `PLAN_COPY`
 - 影片走自家串流:`/v/{token}` 由後端轉送(支援 Range),對外看不到片源網址
 - 相關搜尋 chips(clip.cafe 的 related + didYouMean)
 - 寬鬆搜尋(slop=3)、載入更多(分頁)、`?q=` 可分享連結
@@ -37,7 +38,7 @@ cd takeenglish && npm start            # http://localhost:3300
 | 等級 | 誰 | 搜尋結果 | 字幕 | 下載 |
 |---|---|---|---|---|
 | guest | 沒登入 | 前 `FREE_LIMIT` 筆 | 有 | 無 |
-| free | 登入的免費會員 | 全部(`MEMBER_LIMIT` 可收緊) | 有 | 無 |
+| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 10) | 有 | 無 |
 | pro | 付費會員 | 全部 | 有 | 有 |
 
 - 誰是 Pro 由 PayGate 說了算(`src/paygate.js`):每次用 email 問訂閱帳本,快取 60 秒,本站不存任何會員資料
@@ -88,7 +89,7 @@ npm test
 | PAYGATE_URL / PAYGATE_TOKEN | PayGate 位置與管理金鑰。兩個都有才開放結帳 |
 | PUBLIC_URL | 本站對外網址,付款完成後導回這裡。沒設不開放結帳 |
 | PRO_PLAN_ID | PayGate 上的方案代號,預設 `takeenglish:pro:monthly` |
-| MEMBER_LIMIT | 免費會員每次搜尋筆數,預設 0 = 不限 |
+| MEMBER_LIMIT | 免費會員每次搜尋筆數,預設 10;設 0 = 不限 |
 
 ## 之後再說
 

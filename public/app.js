@@ -11,6 +11,22 @@ const HOT_PHRASES = [
 const PAGE_SIZE = 30
 const CC_PREF_KEY = 'takeenglish-cc'
 const LANG_LABELS = { en: 'English' }
+// 字幕底邊離影片頂端的位置(%)。數字越小字幕越高;100 = 貼在最底
+const CAPTION_BOTTOM_PERCENT = 82
+
+// 方案區塊與鎖定卡的所有文字都在這裡,要改字只改這一處
+const PLAN_COPY = {
+  heading: '方案',
+  link: '方案',
+  names: { guest: '訪客', free: '免費會員', pro: 'Pro' },
+  prices: { guest: '不用登入', free: 'NT$0' },
+  rows: { results: '搜尋結果', subtitles: '字幕', download: '下載 mp4' },
+  all: '全部',
+  current: '目前方案',
+  login: '免費登入',
+  upgrade: '升級 Pro',
+  comingSoon: '即將開放'
+}
 // 從付款頁回來的記號。搜尋會改寫網址,所以一載入就先記下來
 const RETURNED_FROM_CHECKOUT = new URLSearchParams(location.search).has('upgraded')
 
@@ -176,9 +192,25 @@ function attachCaptions(video, subs) {
     track.label = LANG_LABELS[sub.lang] || sub.lang
     track.src = sub.url
     track.default = index === 0
+    track.addEventListener('load', () => raiseCues(track.track))
     video.appendChild(track)
   })
   applyCaptions(video)
+}
+
+// 字幕預設貼在影片最底下,會壓到進度條也不好讀,往上提一點
+function raiseCues(textTrack) {
+  for (const cue of Array.from(textTrack.cues || [])) {
+    try {
+      cue.snapToLines = false
+      cue.lineAlign = 'end'
+      // 支援 lineAlign 的瀏覽器:以字幕框「底邊」定位,一行兩行都不會掉出畫面。
+      // 不支援的只能定位「頂邊」,所以再往上留兩行的空間。
+      cue.line = cue.lineAlign === 'end' ? CAPTION_BOTTOM_PERCENT : CAPTION_BOTTOM_PERCENT - 16
+    } catch {
+      /* 這個瀏覽器不給調位置就維持預設 */
+    }
+  }
 }
 
 // ---- 卡片 ----
@@ -320,7 +352,95 @@ async function refreshMe({ fresh = false } = {}) {
   }
 }
 
+function tierInfo(id) {
+  return (state.config.tiers || []).find((t) => t.id === id) || null
+}
+
+function resultsLabel(limit) {
+  return limit === null || limit === undefined ? PLAN_COPY.all : `前 ${limit} 筆`
+}
+
+// 三個等級並排:名稱、價格、各自拿到什麼、下一步的按鈕。內容來自 /api/config,跟後端擋的是同一份
+function renderPlans(container) {
+  container.replaceChildren()
+  const tiers = state.config.tiers || []
+  if (!authEnabled() || tiers.length === 0) return
+
+  const heading = document.createElement('h2')
+  heading.className = 'plans-title'
+  heading.textContent = PLAN_COPY.heading
+  const grid = document.createElement('div')
+  grid.className = 'plans-grid'
+  const plan = proPlan()
+
+  for (const tier of tiers) {
+    const card = document.createElement('div')
+    card.className = 'plan-card'
+    const isCurrent = tier.id === state.tier
+    card.classList.toggle('current', isCurrent)
+    card.classList.toggle('featured', tier.id === 'pro')
+
+    const name = document.createElement('p')
+    name.className = 'plan-name'
+    name.textContent = PLAN_COPY.names[tier.id] || tier.name
+    const price = document.createElement('p')
+    price.className = 'plan-price'
+    if (tier.id === 'pro') {
+      price.textContent = plan
+        ? `NT$${Number(plan.price).toLocaleString()} / ${plan.cycle === 'yearly' ? '年' : '月'}`
+        : PLAN_COPY.comingSoon
+    } else {
+      price.textContent = PLAN_COPY.prices[tier.id] || ''
+    }
+
+    const list = document.createElement('ul')
+    list.className = 'plan-list'
+    const rows = [
+      [PLAN_COPY.rows.results, resultsLabel(tier.features.results), true],
+      [PLAN_COPY.rows.subtitles, '', Boolean(tier.features.subtitles)],
+      [PLAN_COPY.rows.download, '', Boolean(tier.features.download)]
+    ]
+    for (const [label, value, included] of rows) {
+      const li = document.createElement('li')
+      li.classList.toggle('off', !included)
+      li.textContent = value ? `${label} ${value}` : label
+      list.appendChild(li)
+    }
+    card.append(name, price, list)
+
+    if (isCurrent) {
+      const tag = document.createElement('p')
+      tag.className = 'plan-current'
+      tag.textContent = PLAN_COPY.current
+      card.appendChild(tag)
+    } else if (tier.id === 'free' && !state.user) {
+      const btn = document.createElement('button')
+      btn.className = 'auth-btn'
+      btn.textContent = PLAN_COPY.login
+      btn.onclick = () => {
+        closeModal()
+        sdk()?.login()
+      }
+      card.appendChild(btn)
+    } else if (tier.id === 'pro' && plan) {
+      const btn = document.createElement('button')
+      btn.className = 'auth-btn'
+      btn.textContent = PLAN_COPY.upgrade
+      btn.onclick = openUpgrade
+      card.appendChild(btn)
+    }
+    grid.appendChild(card)
+  }
+  container.append(heading, grid)
+}
+
+function openPlans() {
+  showModal((body) => renderPlans(body), 'wide')
+}
+
 function renderAuth() {
+  renderPlans($('#plans'))
+  $('#plans-link').classList.toggle('hidden', !authEnabled())
   for (const area of [$('#auth-head'), $('#auth-corner')]) {
     area.replaceChildren()
     if (!authEnabled()) continue
@@ -391,6 +511,9 @@ const configReady = loadConfig()
 
 async function initAuth() {
   await configReady
+  // 方案區塊不用等登入元件,設定到了就先畫
+  renderPlans($('#plans'))
+  $('#plans-link').classList.toggle('hidden', !authEnabled())
   const { appId, baseUrl } = state.config.letmeuse
   if (!appId || !baseUrl) return
 
@@ -436,9 +559,10 @@ function closeModal() {
   $('#modal-body').replaceChildren()
 }
 
-function showModal(build) {
+function showModal(build, size = '') {
   const body = $('#modal-body')
   body.replaceChildren()
+  $('#modal').classList.toggle('wide', size === 'wide')
   build(body)
   $('#modal').classList.remove('hidden')
 }
@@ -461,7 +585,10 @@ function modalButton(parent, className, text, onClick) {
 }
 
 function openUpgrade() {
-  if (!state.user) return sdk()?.login()
+  if (!state.user) {
+    closeModal()
+    return sdk()?.login()
+  }
   const plan = proPlan()
   if (!plan) return toast('Pro 即將開放')
   showModal((body) => {
@@ -470,7 +597,7 @@ function openUpgrade() {
     price.innerHTML = `NT$<b>${Number(plan.price).toLocaleString()}</b> / ${plan.cycle === 'yearly' ? '年' : '月'}`
     const list = document.createElement('ul')
     list.className = 'modal-list'
-    for (const line of ['片段一鍵下載 mp4', '全部搜尋結果與字幕', '隨時可退訂,已付的期間照常使用']) {
+    for (const line of ['全部搜尋結果', '片段下載 mp4', '隨時可退訂,已付的期間照常使用']) {
       const li = document.createElement('li')
       li.textContent = line
       list.appendChild(li)
@@ -608,13 +735,23 @@ function lockPanel(total, shown) {
   panel.append(title, sub)
 
   if (!state.user) {
-    sub.textContent = `免費版顯示前 ${shown} 筆,登入就能解鎖全部結果`
+    // 免費會員拿到多少以後端的等級表為準,不要寫死「全部」
+    const free = tierInfo('free')
+    const freeLimit = free ? free.features.results : null
+    sub.textContent =
+      freeLimit === null || freeLimit === undefined
+        ? `訪客顯示前 ${shown} 筆,登入看全部`
+        : `訪客顯示前 ${shown} 筆,登入看前 ${freeLimit} 筆,Pro 看全部`
     if (authEnabled()) {
       const btn = document.createElement('button')
       btn.className = 'auth-btn'
-      btn.textContent = '免費登入解鎖'
+      btn.textContent = PLAN_COPY.login
       btn.onclick = () => sdk()?.login()
-      panel.appendChild(btn)
+      const plans = document.createElement('button')
+      plans.className = 'auth-btn quiet'
+      plans.textContent = PLAN_COPY.link
+      plans.onclick = openPlans
+      panel.append(btn, plans)
     }
   } else {
     sub.textContent = `免費會員顯示前 ${shown} 筆,Pro 看全部`
@@ -723,6 +860,10 @@ $('#modal').onclick = (e) => {
   if (e.target.id === 'modal') closeModal()
 }
 $('#modal-close').onclick = closeModal
+$('#plans-link').onclick = (e) => {
+  e.preventDefault()
+  openPlans()
+}
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal()
 })

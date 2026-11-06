@@ -27,7 +27,7 @@ const app = createApp({
     planId: process.env.PRO_PLAN_ID || 'takeenglish:pro:monthly'
   }),
   publicUrl: (process.env.PUBLIC_URL || '').replace(/[/]+$/, ''),
-  memberLimit: Number.parseInt(process.env.MEMBER_LIMIT || '', 10) || 0,
+  memberLimit: memberLimit(),
   strictPlayback: process.env.STRICT_PLAYBACK === '1',
   auth: createAuth({
     appId: process.env.LETMEUSE_APP_ID,
@@ -60,6 +60,12 @@ function mediaSecret() {
   if (configured.length >= 32) return configured
   process.stderr.write('MEDIA_SECRET missing or shorter than 32 chars: using a random one for this run\n')
   return crypto.randomBytes(32).toString('hex')
+}
+
+// 免費會員每次搜尋看幾筆。沒設 = 10;設 0 = 不限(登入就看全部)
+function memberLimit() {
+  const parsed = Number.parseInt(process.env.MEMBER_LIMIT || '', 10)
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 10
 }
 
 function shutdown() {
