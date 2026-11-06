@@ -13,6 +13,8 @@ const CC_PREF_KEY = 'takeenglish-cc'
 const LANG_LABELS = { en: 'English' }
 // 字幕底邊離影片頂端的位置(%)。數字越小字幕越高;100 = 貼在最底
 const CAPTION_BOTTOM_PERCENT = 82
+// 一行字幕的高度(px),要跟 style.css 的 video::cue 字級 × 行高對得上
+const CAPTION_LINE_PX = 21
 
 // 方案區塊與鎖定卡的所有文字都在這裡,要改字只改這一處
 const PLAN_COPY = {
@@ -192,21 +194,23 @@ function attachCaptions(video, subs) {
     track.label = LANG_LABELS[sub.lang] || sub.lang
     track.src = sub.url
     track.default = index === 0
-    track.addEventListener('load', () => raiseCues(track.track))
+    track.addEventListener('load', () => raiseCues(track.track, video))
     video.appendChild(track)
   })
   applyCaptions(video)
 }
 
-// 字幕預設貼在影片最底下,會壓到進度條也不好讀,往上提一點
-function raiseCues(textTrack) {
+// 字幕預設貼在影片最底下,會壓到進度條也不好讀,往上提一點。
+// 瀏覽器只給「字幕框頂邊在影片的百分之幾」這個參數(Chrome 不支援以底邊定位),
+// 所以用這句有幾行、每行多高,反推頂邊該放哪,讓底邊落在 CAPTION_BOTTOM_PERCENT。
+function raiseCues(textTrack, video) {
+  const height = video.clientHeight || 212
+  const linePercent = (CAPTION_LINE_PX / height) * 100
   for (const cue of Array.from(textTrack.cues || [])) {
     try {
+      const lines = String(cue.text || '').split('\n').length
       cue.snapToLines = false
-      cue.lineAlign = 'end'
-      // 支援 lineAlign 的瀏覽器:以字幕框「底邊」定位,一行兩行都不會掉出畫面。
-      // 不支援的只能定位「頂邊」,所以再往上留兩行的空間。
-      cue.line = cue.lineAlign === 'end' ? CAPTION_BOTTOM_PERCENT : CAPTION_BOTTOM_PERCENT - 16
+      cue.line = Math.max(5, Math.round(CAPTION_BOTTOM_PERCENT - lines * linePercent))
     } catch {
       /* 這個瀏覽器不給調位置就維持預設 */
     }
