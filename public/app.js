@@ -68,7 +68,38 @@ function episodeLabel(clip) {
   return `S${s}E${e}`
 }
 
-// 滑進視野才載入 metadata + 跳到首幀當縮圖,整支影片不會先下載
+// 備援:載入影片 metadata 後跳到首幀當縮圖,整支影片不會先下載
+function loadFrameFromVideo(video) {
+  // 使用者已經開始播(或瀏覽器已載入)就別重載,會打斷播放
+  if (!video.paused || video.readyState > 0) return
+  video.preload = 'metadata'
+  video.addEventListener(
+    'loadedmetadata',
+    () => {
+      try {
+        video.currentTime = Math.min(0.5, (video.duration || 1) / 3)
+      } catch {
+        /* 首幀失敗就維持黑底 */
+      }
+    },
+    { once: true }
+  )
+  video.load()
+}
+
+// 先拿伺服器抽好的首幀 jpg(一張小圖,不用碰影片);拿不到才走備援
+function loadThumb(video) {
+  const slug = video.dataset.slug
+  if (!slug) return loadFrameFromVideo(video)
+  const img = new Image()
+  img.onload = () => {
+    video.poster = img.src
+  }
+  img.onerror = () => loadFrameFromVideo(video)
+  img.src = `/thumb/${encodeURIComponent(slug)}.jpg`
+}
+
+// 滑進視野才要縮圖
 const thumbObserver = new IntersectionObserver(
   (entries) => {
     for (const entry of entries) {
@@ -77,19 +108,7 @@ const thumbObserver = new IntersectionObserver(
       thumbObserver.unobserve(video)
       if (video.dataset.thumbed) continue
       video.dataset.thumbed = '1'
-      video.preload = 'metadata'
-      video.addEventListener(
-        'loadedmetadata',
-        () => {
-          try {
-            video.currentTime = Math.min(0.5, (video.duration || 1) / 3)
-          } catch {
-            /* 首幀失敗就維持黑底 */
-          }
-        },
-        { once: true }
-      )
-      video.load()
+      loadThumb(video)
     }
   },
   { rootMargin: '250px' }
@@ -100,7 +119,7 @@ function clipCard(clip, query) {
   card.className = 'clip-card'
   card.innerHTML = `
     <div class="player">
-      <video preload="none" playsinline disablepictureinpicture src="${escapeHtml(clip.mp4 || '')}"></video>
+      <video preload="none" playsinline disablepictureinpicture data-slug="${escapeHtml(clip.slug || '')}" src="${escapeHtml(clip.mp4 || '')}"></video>
       <div class="play-badge"></div>
       <div class="progress"><div class="progress-fill"></div></div>
     </div>

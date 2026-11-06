@@ -15,6 +15,7 @@ cd takeenglish && npm start            # http://localhost:3300
 
 - Hero 搜尋 + 熱門片語 chips
 - 結果卡片:點擊播放預覽、片語黃色高亮、劇名/季集/片長
+- 卡片縮圖:`/thumb/{slug}.jpg` 轉送 clipcafe-api 用 ffmpeg 抽好的首幀(長快取);拿不到圖時前端自動退回「載入影片 metadata 跳首幀」
 - 相關搜尋 chips(clip.cafe 的 related + didYouMean)
 - 寬鬆搜尋(slop=3)、載入更多(分頁)、`?q=` 可分享連結
 - 響應式,手機可用
