@@ -36,6 +36,19 @@ const TEXT = {
   wallPlans: '看方案',
   wallWorking: '前往付款頁…',
   wallFailed: '付款服務暫時連不上,稍後再試',
+  mine: '我的影片',
+  mineHint: '貼上 YouTube 連結,自動轉成逐句字幕,每個字都能點',
+  minePlaceholder: 'https://www.youtube.com/watch?v=…',
+  mineAdd: '加入',
+  mineAdding: '加入中…',
+  mineEmpty: '還沒有自己的影片',
+  mineBadUrl: '這個連結不支援,請貼 YouTube 影片連結',
+  mineLimit: '這個月加的影片已經到上限',
+  mineFailed: '加入失敗,稍後再試',
+  mineStatus: { downloading: '下載中…', transcribing: '轉字幕中…', ready: '', failed: '處理失敗' },
+  processing: '影片處理中,通常幾分鐘,完成後會自動顯示',
+  uploadWallTitle: '把任何 YouTube 影片變成教材',
+  uploadWallPoints: ['貼連結自動轉成逐句字幕', '每個字點了就懂', '單句重複、慢速、聽寫', '完整影片學習區與片語搜尋'],
   minutes: (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 }
 const SPEEDS = [1, 0.75, 0.5]
@@ -58,13 +71,15 @@ async function getJson(url) {
   return { status: res.status, ok: res.ok && body.success === true, data: body.data }
 }
 
-function lessonCard(item) {
+function lessonCard(item, { mine = false } = {}) {
   const card = el('a', 'lesson-card')
-  card.href = `/lessons?id=${encodeURIComponent(item.id)}`
+  card.href = mine ? `/lessons?mine=${encodeURIComponent(item.id)}` : `/lessons?id=${encodeURIComponent(item.id)}`
   const cover = el('div', 'lesson-cover')
   const thumb = mediaUrl(item.thumb)
   if (thumb) cover.style.backgroundImage = `url("${thumb}")`
   if (item.duration) cover.append(el('span', 'lesson-duration', TEXT.minutes(item.duration)))
+  const status = mine && TEXT.mineStatus[item.status]
+  if (status) cover.append(el('span', `lesson-status ${item.status}`, status))
   card.append(cover, el('p', 'lesson-title', item.title), el('p', 'lesson-channel', item.channel))
   return card
 }
@@ -78,6 +93,7 @@ async function renderList() {
     return
   }
   main.replaceChildren(el('h1', 'watch-title', TEXT.heading), el('p', 'lesson-sub', TEXT.sub))
+  main.append(await mineSection())
   if (res.data.items.length === 0) {
     main.append(el('p', 'watch-status', TEXT.empty))
     return
@@ -100,6 +116,82 @@ async function renderList() {
     )
     main.append(pager)
   }
+}
+
+// ---- 我的影片:貼連結加、看處理進度 ----
+
+async function mineSection() {
+  const box = el('section', 'lesson-mine')
+  box.append(el('h2', 'row-title', TEXT.mine), el('p', 'lesson-sub mine-hint', TEXT.mineHint))
+  const form = el('form', 'lesson-add')
+  const input = el('input', 'lesson-add-input')
+  input.type = 'url'
+  input.placeholder = TEXT.minePlaceholder
+  input.required = true
+  const submit = el('button', 'auth-btn', TEXT.mineAdd)
+  submit.type = 'submit'
+  const note = el('p', 'study-note lesson-add-note', '')
+  form.append(input, submit)
+  box.append(form, note)
+  const grid = el('div', 'lesson-grid')
+  box.append(grid)
+
+  const signedIn = Boolean(window.teSession.user())
+  let canAdd = false
+  let timer = null
+
+  async function refresh() {
+    const res = await getJson('/api/my-lessons')
+    if (!res.ok) return
+    canAdd = res.data.canAdd
+    grid.replaceChildren()
+    for (const item of res.data.items) grid.append(lessonCard(item, { mine: true }))
+    if (res.data.items.length === 0) grid.append(el('p', 'watch-status mine-empty', TEXT.mineEmpty))
+    // 還有在處理的就每 10 秒再問一次
+    clearTimeout(timer)
+    if (res.data.items.some((item) => item.status === 'downloading' || item.status === 'transcribing')) {
+      timer = setTimeout(refresh, 10_000)
+    }
+  }
+
+  form.onsubmit = async (event) => {
+    event.preventDefault()
+    // 沒登入:先登入;不是 Pro:這裡撞牆
+    if (!signedIn) return window.teSession.login()
+    if (!canAdd) {
+      return showWall({ signedIn: true, lockedLines: 0 }, { title: TEXT.uploadWallTitle, points: TEXT.uploadWallPoints })
+    }
+    submit.disabled = true
+    note.textContent = TEXT.mineAdding
+    try {
+      const token = window.teSession.getToken()
+      const res = await fetch('/api/my-lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ url: input.value.trim() })
+      })
+      const body = await res.json().catch(() => ({}))
+      if (res.status === 402) {
+        note.textContent = ''
+        showWall({ signedIn: true, lockedLines: 0 }, { title: TEXT.uploadWallTitle, points: TEXT.uploadWallPoints })
+      } else if (!res.ok) {
+        note.textContent = res.status === 400 ? TEXT.mineBadUrl : res.status === 429 ? TEXT.mineLimit : TEXT.mineFailed
+      } else {
+        note.textContent = ''
+        input.value = ''
+        await refresh()
+        if (body.data && body.data.id && body.data.status === 'ready') location.href = `/lessons?mine=${encodeURIComponent(body.data.id)}`
+      }
+    } catch {
+      note.textContent = TEXT.mineFailed
+    } finally {
+      submit.disabled = false
+    }
+  }
+
+  if (signedIn) await refresh()
+  else grid.append(el('p', 'watch-status mine-empty', TEXT.mineEmpty))
+  return box
 }
 
 // 從指定秒數開始播;影片還沒載入時先等它知道片長
@@ -148,7 +240,7 @@ async function checkout(btn, note) {
 }
 
 // 撞牆:影片播到被鎖的地方、或想看完整內容時,才跳出升級視窗
-function showWall(lesson) {
+function showWall(lesson, { title = TEXT.wallTitle, points = TEXT.wallPoints } = {}) {
   if (document.querySelector('.wall')) return
   const billing = (window.teSession.config() || {}).billing || {}
   const overlay = el('div', 'modal wall')
@@ -159,11 +251,11 @@ function showWall(lesson) {
   overlay.onclick = (e) => {
     if (e.target === overlay) overlay.remove()
   }
-  card.append(close, el('p', 'modal-title', TEXT.wallTitle))
+  card.append(close, el('p', 'modal-title', title))
   if (lesson.lockedLines) card.append(el('p', 'wall-count', TEXT.lockedLines(lesson.lockedLines)))
   if (billing.enabled && billing.plan) card.append(el('p', 'modal-price', TEXT.wallPrice(billing.plan.price, billing.plan.cycle)))
   const list = el('ul', 'modal-list')
-  for (const point of TEXT.wallPoints) list.append(el('li', '', point))
+  for (const point of points) list.append(el('li', '', point))
   card.append(list)
   const note = el('p', 'modal-note', '')
   card.append(note)
@@ -231,14 +323,23 @@ function summaryPanel(lesson) {
   return box
 }
 
-async function renderLesson(id) {
-  const res = await getJson(`/api/lessons/${encodeURIComponent(id)}`)
+async function renderLesson(id, { mine = false } = {}) {
+  const res = await getJson(mine ? `/api/my-lessons/${encodeURIComponent(id)}` : `/api/lessons/${encodeURIComponent(id)}`)
   const main = $('#lesson-main')
   if (!res.ok) {
-    $('#lesson-status').textContent = res.status === 404 ? TEXT.notFound : TEXT.error
+    $('#lesson-status').textContent = res.status === 404 || res.status === 401 ? TEXT.notFound : TEXT.error
     return
   }
   const lesson = res.data
+  // 自己的影片還在處理:顯示進度,過一下再來看
+  if (mine && lesson.status !== 'ready') {
+    const back = el('a', 'lesson-back', TEXT.back)
+    back.href = '/lessons'
+    const message = lesson.status === 'failed' ? TEXT.mineStatus.failed : TEXT.processing
+    main.replaceChildren(back, el('h1', 'lesson-heading', lesson.title), el('p', 'watch-status', message))
+    if (lesson.status !== 'failed') setTimeout(() => location.reload(), 10_000)
+    return
+  }
   document.title = `${lesson.title}｜${TEXT.heading}｜takeENGLISH`
 
   const state = { display: lesson.notes ? 'both' : 'en', repeat: false, speed: 0, dictation: false, active: -1 }
@@ -399,7 +500,9 @@ async function renderLesson(id) {
 async function init() {
   try {
     const id = params.get('id')
-    if (id) await renderLesson(id)
+    const mine = params.get('mine')
+    if (mine) await renderLesson(mine, { mine: true })
+    else if (id) await renderLesson(id)
     else await renderList()
   } catch {
     $('#lesson-status').textContent = TEXT.error

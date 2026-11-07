@@ -63,3 +63,15 @@
 .wall-count { margin-top: 6px; color: var(--yellow); font-size: 16px; font-weight: 900; }
 .wall .modal-card .auth-btn { margin-top: 14px; }
 .wall .modal-card .auth-btn.quiet { margin-left: 8px; text-decoration: none; display: inline-block; }
+/* 我的影片 */
+.lesson-mine { margin-bottom: 36px; padding-bottom: 28px; border-bottom: 2px solid var(--line); }
+.mine-hint { margin: 0 0 14px; }
+.lesson-add { display: flex; gap: 10px; max-width: 640px; }
+.lesson-add-input { flex: 1; min-width: 0; padding: 10px 12px; background: #000; border: 2px solid var(--line); color: var(--text); font-size: 14px; }
+.lesson-add-input:focus { outline: none; border-color: var(--yellow); }
+.lesson-add-note:empty { display: none; }
+.lesson-add-note { padding: 8px 0 0; }
+.lesson-mine .lesson-grid { margin-top: 16px; }
+.mine-empty { padding: 12px 0; text-align: left; }
+.lesson-status { position: absolute; left: 6px; top: 6px; padding: 2px 7px; background: var(--yellow); color: #000; font-size: 12px; font-weight: 900; }
+.lesson-status.failed { background: #b33; color: #fff; }

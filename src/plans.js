@@ -29,7 +29,7 @@ function createPlans({
         id: 'guest',
         name: '訪客',
         price: 0,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false }
       },
       {
         id: 'free',
@@ -43,14 +43,15 @@ function createPlans({
           studyEpisodes: freeEpisodes,
           lessonNotes: true,
           lessonLines: memberLessonLines,
-          lessonModes: false
+          lessonModes: false,
+          lessonUpload: false
         }
       },
       {
         id: 'pro',
         name: 'Pro',
         price: 0,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true }
       }
     ]
   })

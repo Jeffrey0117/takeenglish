@@ -36,7 +36,7 @@ const app = createApp({
     cacheDir: require('node:path').join(__dirname, 'cache', 'annotations'),
     maxNewPerDay: Number.parseInt(process.env.ANNOTATE_DAILY_CAP || '', 10) || 500
   }),
-  lessons: createLessonSource({ baseUrl: process.env.LESSON_ENGINE_URL }),
+  lessons: createLessonSource({ baseUrl: process.env.LESSON_ENGINE_URL, internalKey: process.env.ANNOTATE_TOKEN || '' }),
   publicUrl: (process.env.PUBLIC_URL || '').replace(/[/]+$/, ''),
   memberLimit: memberLimit(),
   strictPlayback: process.env.STRICT_PLAYBACK === '1',
