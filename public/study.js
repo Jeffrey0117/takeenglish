@@ -109,8 +109,23 @@
       if (wasOpen) return
       button.classList.add('open')
       const tip = el('span', 'study-tip')
-      button.after(tip)
+      // 浮在那個字下方,不插進句子裡把後面的字擠走
+      tip.place = () => placeTip(tip, button, row)
+      row.append(tip)
       fill(tip)
+      tip.place()
+    }
+  }
+
+  // 小卡放在字的正下方;右邊超出就往左推,下方被捲動區塊切掉就改放上方
+  function placeTip(tip, button, row) {
+    const left = Math.max(0, Math.min(button.offsetLeft, row.clientWidth - tip.offsetWidth - 4))
+    tip.style.left = `${left}px`
+    tip.style.top = `${button.offsetTop + button.offsetHeight + 4}px`
+    const scroller = row.closest('.lesson-lines, .study-panel, .ep-study') || document.documentElement
+    const bottom = scroller.getBoundingClientRect().bottom
+    if (tip.getBoundingClientRect().bottom > bottom) {
+      tip.style.top = `${button.offsetTop - tip.offsetHeight - 4}px`
     }
   }
 
@@ -121,6 +136,7 @@
       tip.replaceChildren()
       if (!entry) {
         tip.append(el('span', 'study-tip-zh', TEXT.notFound), searchLink(word))
+        tip.place()
         return
       }
       const head = el('span', 'study-tip-head')
@@ -132,6 +148,8 @@
       else if (entry.word !== entry.query) tip.append(el('span', 'study-tip-note', TEXT.baseForm(entry.word)))
       for (const sense of entry.senses || []) tip.append(el('span', 'study-tip-zh', sense))
       tip.append(searchLink(entry.word))
+      // 內容變多了,重新對位
+      tip.place()
     })
   }
 

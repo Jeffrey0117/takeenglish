@@ -98,3 +98,7 @@
 .study-level { padding: 0 6px; border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 800; }
 .study-level.level-1,
 .study-level.level-2 { border-color: rgba(255, 214, 10, 0.5); color: var(--yellow); }
+
+/* 小卡浮在字的下方(不推動文字) */
+.study-line { position: relative; }
+.study-tip { position: absolute; z-index: 30; margin: 0; display: flex; width: max-content; max-width: min(420px, calc(100% - 8px)); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
