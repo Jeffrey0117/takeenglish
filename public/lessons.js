@@ -1,4 +1,5 @@
 // 影片學習:列表 → 單支影片(左邊影片、右邊逐句中英字幕,每個字可點,點一句從那句開始播)
+// 學習模式(Pro):單句重複、慢速、遮字幕聽寫、字幕中英切換、重點整理
 const TEXT = {
   heading: '影片學習',
   sub: '看短影片學英文:逐句中英字幕,每個字點了就懂。',
@@ -12,8 +13,25 @@ const TEXT = {
   noVideo: '這支影片暫時不能播放,字幕照常可以看',
   loginForNotes: '登入後可以看中文翻譯與重點片語',
   login: '免費登入',
+  upgrade: '升級 Pro',
+  lockedGuest: (n) => `還有 ${n} 句沒顯示,免費登入可以多看幾句`,
+  lockedMember: (n) => `還有 ${n} 句沒顯示,Pro 看完整逐字稿`,
+  modesTitle: '學習模式',
+  proOnly: 'PRO',
+  modesLocked: '學習模式是 Pro 功能',
+  display: { en: '英文', both: '中英', zh: '中文' },
+  repeat: '單句重複',
+  speed: (rate) => `${rate}x`,
+  dictation: '聽寫',
+  dictationHint: '點一下句子看答案',
+  summary: '重點整理',
+  keyPoints: '重點',
+  quotes: '金句',
+  words: '單字表',
   minutes: (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 }
+const SPEEDS = [1, 0.75, 0.5]
+const DISPLAY_ORDER = ['both', 'en', 'zh']
 
 const $ = (sel) => document.querySelector(sel)
 const params = new URLSearchParams(location.search)
@@ -87,6 +105,66 @@ function playFrom(video, seconds) {
   video.play().catch(() => {})
 }
 
+function upgradeButton() {
+  const a = el('a', 'auth-btn', TEXT.upgrade)
+  a.href = '/#plans'
+  a.style.textDecoration = 'none'
+  return a
+}
+
+function loginButton() {
+  const b = el('button', 'auth-btn', TEXT.login)
+  b.type = 'button'
+  b.onclick = () => window.teSession.login()
+  return b
+}
+
+// 沒權限的人按到學習模式:不偷偷失效,直接告訴他這是 Pro 功能
+function lockedNotice(box) {
+  box.replaceChildren()
+  const note = el('p', 'study-note', TEXT.modesLocked)
+  note.append(upgradeButton())
+  box.append(note)
+}
+
+// 重點整理:主旨、重點、金句、這支影片的單字表
+function summaryPanel(lesson) {
+  const box = el('div', 'lesson-summary')
+  if (lesson.theme) box.append(el('p', 'lesson-summary-theme', lesson.theme))
+  const s = lesson.summary || {}
+  if (s.keyPoints && s.keyPoints.length) {
+    box.append(el('h3', 'lesson-summary-h', TEXT.keyPoints))
+    const list = el('ul', 'lesson-summary-list')
+    for (const point of s.keyPoints) list.append(el('li', '', point))
+    box.append(list)
+  }
+  if (s.quotes && s.quotes.length) {
+    box.append(el('h3', 'lesson-summary-h', TEXT.quotes))
+    for (const quote of s.quotes) box.append(renderLine({ text: quote.en, zh: quote.zh, vocab: [] }))
+  }
+  const seen = new Set()
+  const words = []
+  for (const segment of lesson.segments) {
+    for (const v of segment.vocab || []) {
+      const key = v.word.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      words.push(v)
+    }
+  }
+  if (words.length) {
+    box.append(el('h3', 'lesson-summary-h', TEXT.words))
+    const table = el('div', 'lesson-words')
+    for (const v of words) {
+      const link = el('a', 'lesson-word', v.word)
+      link.href = `/?q=${encodeURIComponent(v.word)}`
+      table.append(link, el('span', 'lesson-word-zh', v.zh))
+    }
+    box.append(table)
+  }
+  return box
+}
+
 async function renderLesson(id) {
   const res = await getJson(`/api/lessons/${encodeURIComponent(id)}`)
   const main = $('#lesson-main')
@@ -97,10 +175,15 @@ async function renderLesson(id) {
   const lesson = res.data
   document.title = `${lesson.title}｜${TEXT.heading}｜takeENGLISH`
 
+  const state = { display: lesson.notes ? 'both' : 'en', repeat: false, speed: 0, dictation: false, active: -1 }
+
   const back = el('a', 'lesson-back', TEXT.back)
   back.href = '/lessons'
   const layout = el('div', 'lesson-layout')
   const left = el('div', 'lesson-left')
+  const right = el('div', 'lesson-right')
+  const toolbar = el('div', 'lesson-toolbar')
+  const extra = el('div', 'lesson-extra')
   const panel = el('div', 'lesson-lines')
 
   const src = mediaUrl(lesson.video)
@@ -125,38 +208,121 @@ async function renderLesson(id) {
   if (lesson.theme) left.append(el('p', 'lesson-theme', lesson.theme))
   if (!lesson.notes) {
     const note = el('p', 'study-note', TEXT.loginForNotes)
-    const login = el('button', 'auth-btn', TEXT.login)
-    login.onclick = () => window.teSession.login()
-    note.append(login)
+    note.append(loginButton())
     left.append(note)
   }
 
-  const rows = lesson.segments.map((segment) => {
+  // ---- 逐字稿 ----
+  const rows = lesson.segments.map((segment, index) => {
     const row = renderLine(segment)
+    row.dataset.index = String(index)
     if (video) {
       row.classList.add('seekable')
       row.onclick = () => {
         closeTips(panel)
+        // 聽寫模式下,點一下是看答案
+        if (state.dictation) row.classList.add('revealed')
+        state.active = index
         playFrom(video, segment.start)
       }
     }
     panel.append(row)
     return { row, start: segment.start, end: segment.end }
   })
-  // 播到哪一句就亮哪一句
+  if (lesson.lockedLines > 0) {
+    const lock = el('div', 'lesson-lock')
+    lock.append(el('p', 'lock-title', lesson.signedIn ? TEXT.lockedMember(lesson.lockedLines) : TEXT.lockedGuest(lesson.lockedLines)))
+    lock.append(lesson.signedIn ? upgradeButton() : loginButton())
+    panel.append(lock)
+  }
+
+  function applyDisplay() {
+    panel.classList.toggle('hide-zh', state.display === 'en')
+    panel.classList.toggle('hide-en', state.display === 'zh')
+    panel.classList.toggle('dictation', state.dictation)
+    if (!state.dictation) for (const r of rows) r.row.classList.remove('revealed')
+  }
+
+  // ---- 學習模式工具列 ----
+  const buttons = {}
+  function tool(key, label, onClick, { pro = true } = {}) {
+    const btn = el('button', 'study-btn lesson-tool', label)
+    btn.type = 'button'
+    if (pro && !lesson.modes) btn.append(el('span', 'ep-lock', TEXT.proOnly))
+    btn.onclick = () => {
+      if (pro && !lesson.modes) return lockedNotice(extra)
+      onClick(btn)
+    }
+    buttons[key] = btn
+    toolbar.append(btn)
+    return btn
+  }
+  toolbar.append(el('span', 'lesson-toolbar-title', TEXT.modesTitle))
+  if (lesson.notes) {
+    tool('display', TEXT.display[state.display], (btn) => {
+      state.display = DISPLAY_ORDER[(DISPLAY_ORDER.indexOf(state.display) + 1) % DISPLAY_ORDER.length]
+      btn.textContent = TEXT.display[state.display]
+      applyDisplay()
+    }, { pro: false })
+  }
+  if (video) {
+    tool('repeat', TEXT.repeat, (btn) => {
+      state.repeat = !state.repeat
+      btn.classList.toggle('on', state.repeat)
+      // 還沒選句子就從目前播到的那句開始重複
+      if (state.repeat && state.active < 0) {
+        const now = video.currentTime
+        state.active = Math.max(0, rows.findIndex((r) => now >= r.start && now < r.end))
+      }
+    })
+    tool('speed', TEXT.speed(SPEEDS[0]), (btn) => {
+      state.speed = (state.speed + 1) % SPEEDS.length
+      video.playbackRate = SPEEDS[state.speed]
+      btn.textContent = TEXT.speed(SPEEDS[state.speed])
+      btn.classList.toggle('on', state.speed !== 0)
+    })
+  }
+  tool('dictation', TEXT.dictation, (btn) => {
+    state.dictation = !state.dictation
+    btn.classList.toggle('on', state.dictation)
+    extra.replaceChildren()
+    if (state.dictation) extra.append(el('p', 'study-note', TEXT.dictationHint))
+    applyDisplay()
+  })
+  tool('summary', TEXT.summary, (btn) => {
+    const open = !btn.classList.contains('on')
+    btn.classList.toggle('on', open)
+    extra.replaceChildren()
+    if (open) extra.append(summaryPanel(lesson))
+  })
+
+  // 播到哪一句就亮哪一句;單句重複時,播完那句就跳回句首
   if (video) {
     video.addEventListener('timeupdate', () => {
       const now = video.currentTime
-      for (const line of rows) {
-        const active = now >= line.start && now < line.end
-        if (active && !line.row.classList.contains('active')) line.row.scrollIntoView({ block: 'nearest' })
-        line.row.classList.toggle('active', active)
+      if (state.repeat && state.active >= 0 && rows[state.active]) {
+        const line = rows[state.active]
+        if (now >= line.end || now < line.start - 0.5) {
+          video.currentTime = line.start
+          return
+        }
       }
+      rows.forEach((line, index) => {
+        const active = now >= line.start && now < line.end
+        if (active && !line.row.classList.contains('active')) {
+          line.row.scrollIntoView({ block: 'nearest' })
+          if (!state.repeat) state.active = index
+        }
+        line.row.classList.toggle('active', active)
+      })
     })
   }
 
-  layout.append(left, panel)
+  applyDisplay()
+  right.append(toolbar, extra, panel)
+  layout.append(left, right)
   main.replaceChildren(back, layout)
+
   // 登入狀態真的變了(登入/登出)才重新載入。登入元件啟動時也會回報一次「目前是誰」,
   // 那一次身分沒變,不能重載,不然會一直重整
   const identity = (user) => (user ? user.id || user.sub || user.email || 'signed-in' : null)

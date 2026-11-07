@@ -32,3 +32,29 @@
   .lesson-left { position: static; }
   .lesson-lines { max-height: none; }
 }
+
+/* 學習模式 */
+.lesson-right { min-width: 0; }
+.lesson-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.lesson-toolbar-title { color: var(--muted); font-size: 12px; font-weight: 900; letter-spacing: 2px; margin-right: 4px; }
+.lesson-tool { padding: 5px 10px; font-size: 12px; }
+.lesson-tool .ep-lock { margin-left: 6px; color: var(--yellow); }
+.lesson-extra:empty { display: none; }
+.lesson-extra { margin-bottom: 10px; border: 1px solid var(--line); background: #0a0a0a; }
+.lesson-lines.hide-zh .study-zh { display: none; }
+.lesson-lines.hide-en .study-en { display: none; }
+.lesson-lines.hide-en .study-zh { color: var(--text); font-size: 15px; }
+/* 聽寫:英文糊掉,點一下才露出來 */
+.lesson-lines.dictation .study-line:not(.revealed) .study-en { filter: blur(6px); user-select: none; }
+.lesson-lines.dictation .study-line:not(.revealed) .study-en .study-word { pointer-events: none; }
+.lesson-lock { padding: 22px 14px; text-align: center; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 214, 10, 0.03), rgba(255, 214, 10, 0.08)); }
+.lesson-lock .lock-title { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.lesson-summary { padding: 14px 16px; }
+.lesson-summary-theme { font-size: 15px; font-weight: 800; }
+.lesson-summary-h { margin: 14px 0 6px; color: var(--yellow); font-size: 13px; font-weight: 900; letter-spacing: 2px; }
+.lesson-summary-list { margin: 0; padding-left: 20px; font-size: 14px; font-weight: 600; line-height: 1.7; }
+.lesson-summary .study-line { padding: 6px 0; }
+.lesson-words { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 14px; }
+.lesson-word { color: var(--yellow); font-weight: 800; text-decoration: none; }
+.lesson-word:hover { text-decoration: underline; }
+.lesson-word-zh { color: var(--text); font-weight: 600; }

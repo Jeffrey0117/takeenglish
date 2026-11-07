@@ -77,6 +77,11 @@ function createLessonSource({ baseUrl, fetchImpl = globalThis.fetch, now = Date.
           channel: typeof raw.channel === 'string' ? raw.channel : '',
           source: typeof raw.source === 'string' ? raw.source : '',
           theme: typeof raw.theme === 'string' ? raw.theme : '',
+          keyPoints: (Array.isArray(raw.keyPoints) ? raw.keyPoints : []).filter((p) => typeof p === 'string' && p).slice(0, 10),
+          quotes: (Array.isArray(raw.goldenQuotes) ? raw.goldenQuotes : [])
+            .filter((q) => q && typeof q.en === 'string' && q.en)
+            .map((q) => ({ en: q.en, zh: typeof q.zh === 'string' ? q.zh : '' }))
+            .slice(0, 10),
           duration: Number.isFinite(raw.duration) ? raw.duration : null,
           file: FILE_PATTERN.test(raw.filename || '') ? raw.filename : null,
           thumb: FILE_PATTERN.test(raw.thumbnail || '') ? raw.thumbnail : null,
@@ -154,8 +159,12 @@ function mountLessonRoutes(app, { source, viewer, plans, limiter, clientIp }) {
       return fail(res, 502, 'lessons_unavailable')
     }
     if (!lesson) return fail(res, 404, 'lesson_not_found')
-    const { tier } = await viewer(req)
+    const { user, tier } = await viewer(req)
     const notes = plans.can(tier, 'lessonNotes')
+    const modes = plans.can(tier, 'lessonModes')
+    // 逐字稿只露前幾句;鎖住的句子連內容都不送出去,只告訴前端還有幾句
+    const limit = plans.quota(tier, 'lessonLines')
+    const visible = limit === null ? lesson.segments : lesson.segments.slice(0, limit)
     res.set('Cache-Control', 'no-store')
     return res.json({
       success: true,
@@ -168,9 +177,16 @@ function mountLessonRoutes(app, { source, viewer, plans, limiter, clientIp }) {
         duration: lesson.duration,
         video: lesson.file ? `/lesson-media/${lesson.id}/video` : null,
         thumb: lesson.thumb ? `/lesson-media/${lesson.id}/thumb.jpg` : null,
+        tier,
+        signedIn: Boolean(user),
         // 沒權限看筆記的:英文照給(可以點字查字典),中文和重點片語拿掉
         notes,
-        segments: lesson.segments.map((s) => (notes ? s : { ...s, zh: '', vocab: [] }))
+        modes,
+        totalLines: lesson.segments.length,
+        lockedLines: lesson.segments.length - visible.length,
+        segments: visible.map((s) => (notes ? s : { ...s, zh: '', vocab: [] })),
+        // 重點整理是學習模式的一部分,只給 Pro
+        summary: modes ? { keyPoints: lesson.keyPoints, quotes: lesson.quotes } : null
       }
     })
   })

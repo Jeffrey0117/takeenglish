@@ -4,14 +4,17 @@ const { createApp } = require('../src/app')
 const { createAuth } = require('../src/auth')
 const { createJwksCache } = require('../src/jwks')
 const { createLessonSource } = require('../src/lessons')
+const { createPaygate } = require('../src/paygate')
 const { createTestKeys, makeEs256Token, fakeJwksFetch, futureExp, TEST_TOKENS } = require('./helpers')
 
 const APP_ID = 'app_test'
 const KEYS = createTestKeys('kid-1')
 const ID = '083b6ea5-3c98-45fc-b72b-7027cf1a9b0f'
-const bearer = () => ({
-  Authorization: `Bearer ${makeEs256Token({ sub: 'u1', email: 'free@example.com', app: APP_ID, exp: futureExp() }, KEYS)}`
+const bearer = (email = 'free@example.com') => ({
+  Authorization: `Bearer ${makeEs256Token({ sub: `u-${email}`, email, app: APP_ID, exp: futureExp() }, KEYS)}`
 })
+// 12 句:訪客看 5 句、免費會員看 10 句、Pro 全部
+const EXTRA = Array.from({ length: 10 }, (_, i) => ({ start: 20 + i * 3, end: 22 + i * 3, en: `Extra line ${i + 1}.`, zh: `第 ${i + 1} 句。`, vocabulary: [] }))
 
 // 假的影片引擎:列表、單支影片、影片檔、縮圖
 function fakeEngine({ down = false } = {}) {
@@ -41,8 +44,11 @@ function fakeEngine({ down = false } = {}) {
         thumbnail: 'a.jpg',
         segments: [
           { start: 0.9, end: 3.4, en: 'Here we are, one of the elephants.', zh: '這裡有一隻大象。', vocabulary: [{ word: 'elephants', translation: '大象' }] },
-          { start: 4.8, end: 13.7, en: 'They have really long fronts.', zh: '牠們的前面很長。', vocabulary: [] }
-        ]
+          { start: 4.8, end: 13.7, en: 'They have really long fronts.', zh: '牠們的前面很長。', vocabulary: [] },
+          ...EXTRA
+        ],
+        keyPoints: ['大象鼻子很長'],
+        goldenQuotes: [{ en: 'That is pretty much it.', zh: '就是這樣。' }]
       })
     }
     if (u.pathname === '/videos/jNQXAC9IVRw.mp4') {
@@ -63,6 +69,15 @@ function startApp(engine = fakeEngine()) {
     auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'http://jwks.test', fetchImpl }) }),
     tokens: TEST_TOKENS,
     lessons: createLessonSource({ baseUrl: 'http://engine.test', fetchImpl: engine.fetchImpl }),
+    paygate: createPaygate({
+      baseUrl: 'http://paygate.test',
+      token: 't',
+      onError: () => {},
+      fetchImpl: async (url) => {
+        const email = new URL(url).searchParams.get('email')
+        return new Response(JSON.stringify(email === 'pro@example.com' ? { active: true, end_date: '2099-01-01' } : { active: false }), { status: 200 })
+      }
+    }),
     letmeuse: {}
   })
   return new Promise((resolve) => {
@@ -157,6 +172,33 @@ test('lessons: 列表與單支影片都有快取,不會每個請求都打引擎'
     await fetch(`${base}/api/lessons/${ID}`)
     assert.equal(engine.calls.filter((c) => c.path.startsWith('/api/public/videos?')).length, 1)
     assert.equal(engine.calls.filter((c) => c.path.endsWith('/lesson')).length, 1)
+  } finally {
+    server.close()
+  }
+})
+
+test('lessons: 逐字稿只露一部分 — 訪客 5 句、免費會員 10 句、Pro 全部;鎖住的句子不送出去', async () => {
+  const { server, base } = await startApp()
+  try {
+    const guest = (await (await fetch(`${base}/api/lessons/${ID}`)).json()).data
+    assert.equal(guest.segments.length, 5)
+    assert.equal(guest.totalLines, 12)
+    assert.equal(guest.lockedLines, 7)
+    assert.equal(guest.signedIn, false)
+    assert.ok(!JSON.stringify(guest).includes('Extra line 4.'), 'locked lines must not be sent')
+
+    const free = (await (await fetch(`${base}/api/lessons/${ID}`, { headers: bearer() })).json()).data
+    assert.equal(free.segments.length, 10)
+    assert.equal(free.lockedLines, 2)
+    assert.equal(free.modes, false)
+    assert.equal(free.summary, null)
+
+    const pro = (await (await fetch(`${base}/api/lessons/${ID}`, { headers: bearer('pro@example.com') })).json()).data
+    assert.equal(pro.tier, 'pro')
+    assert.equal(pro.segments.length, 12)
+    assert.equal(pro.lockedLines, 0)
+    assert.equal(pro.modes, true)
+    assert.deepEqual(pro.summary, { keyPoints: ['大象鼻子很長'], quotes: [{ en: 'That is pretty much it.', zh: '就是這樣。' }] })
   } finally {
     server.close()
   }

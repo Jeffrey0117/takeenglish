@@ -22,7 +22,7 @@ const PLAN_COPY = {
   link: '方案',
   names: { guest: '訪客', free: '免費會員', pro: 'Pro' },
   prices: { guest: '不用登入', free: 'NT$0' },
-  rows: { results: '搜尋結果', subtitles: '字幕', study: '逐句解析', download: '下載 mp4' },
+  rows: { results: '搜尋結果', subtitles: '字幕', study: '逐句解析', lessonModes: '影片學習模式', download: '下載 mp4' },
   studyButton: '逐句解析',
   studyPerDay: (n) => `每天 ${n} 支`,
   unlimited: '不限',
@@ -422,6 +422,7 @@ function renderPlans(container) {
       ...(state.config.study
         ? [[PLAN_COPY.rows.study, tier.features.study === null ? PLAN_COPY.unlimited : PLAN_COPY.studyPerDay(tier.features.study), tier.features.study !== 0]]
         : []),
+      ...(state.config.lessons ? [[PLAN_COPY.rows.lessonModes, '', Boolean(tier.features.lessonModes)]] : []),
       [PLAN_COPY.rows.download, '', Boolean(tier.features.download)]
     ]
     for (const [label, value, included] of rows) {
@@ -629,7 +630,7 @@ function openUpgrade() {
     price.innerHTML = `NT$<b>${Number(plan.price).toLocaleString()}</b> / ${plan.cycle === 'yearly' ? '年' : '月'}`
     const list = document.createElement('ul')
     list.className = 'modal-list'
-    for (const line of ['全部搜尋結果', '片段下載 mp4', '隨時可退訂,已付的期間照常使用']) {
+    for (const line of ['全部搜尋結果', '影片學習模式:單句重複、慢速、聽寫、重點整理', '完整逐字稿', '片段下載 mp4', '隨時可退訂,已付的期間照常使用']) {
       const li = document.createElement('li')
       li.textContent = line
       list.appendChild(li)
