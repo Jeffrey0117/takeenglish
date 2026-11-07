@@ -33,6 +33,7 @@ const PLAN_COPY = {
   },
   full: '完整',
   preview: '預覽',
+  trial: '試用',
   studyButton: '逐句解析',
   studyPerDay: (n) => `每天 ${n} 支`,
   unlimited: '不限',
@@ -401,7 +402,8 @@ function planRows(free, pro) {
     rows.push([PLAN_COPY.rows.study, f.study ? PLAN_COPY.studyPerDay(f.study) : no, p.study === null ? PLAN_COPY.unlimited : PLAN_COPY.studyPerDay(p.study)])
   }
   if (state.config.lessons) {
-    rows.push([PLAN_COPY.rows.lessonModes, f.lessonModes ? yes : no, p.lessonModes ? yes : no])
+    // 免費會員在看得到的那幾句裡可以用,所以寫「試用」,不是沒有
+    rows.push([PLAN_COPY.rows.lessonModes, f.lessonModes ? yes : PLAN_COPY.trial, p.lessonModes ? yes : no])
     rows.push([PLAN_COPY.rows.summary, PLAN_COPY.preview, PLAN_COPY.full])
     rows.push([PLAN_COPY.rows.lessonUpload, f.lessonUpload ? yes : no, p.lessonUpload ? yes : no])
   }
