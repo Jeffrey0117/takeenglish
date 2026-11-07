@@ -29,6 +29,8 @@ function createPlans({
         id: 'guest',
         name: '訪客',
         price: 0,
+        // 訪客不是可以「選」的方案:功能閘門照用,但方案頁不畫(見 paywall-kit SKILL.md 方案頁鐵則)
+        listed: false,
         features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false }
       },
       {
@@ -71,6 +73,7 @@ function createPlans({
     return paywall.allTiers().map((tier) => ({
       id: tier.id,
       name: tier.name,
+      listed: tier.listed !== false,
       features: {
         ...tier.features,
         results: resultLimit(tier.id),
