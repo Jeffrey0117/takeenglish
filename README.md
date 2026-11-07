@@ -154,3 +154,10 @@ npm test
 - 部署(CloudPipe)時 clipcafe-api 要一起上
 - 片語解釋/教學內容區塊(接 LLM)
 - 收藏/單字本(要接 LetMeUse 登入)
+
+## 影片學習(/lessons)
+
+- 內容是 ReelScript 引擎已經處理好的影片(逐句中英字幕 + 重點單字),本站只讀、不觸發任何處理,不花錢
+- 引擎位置 `LESSON_ENGINE_URL`(同機直連它的後端,例如 `http://127.0.0.1:5005`);影片與縮圖由本站轉送 `/lesson-media/{id}/…`,支援 Range
+- 訪客看得到英文字幕、每個字可點查字典;登入後才有中文翻譯與重點片語(`src/plans.js` 的 `lessonNotes`)
+- 引擎那邊的資料來源:ReelScript `GET /api/public/videos`、`GET /api/public/videos/{id}/lesson`

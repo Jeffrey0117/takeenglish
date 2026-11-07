@@ -19,7 +19,6 @@ const TEXT = {
   empty: '還沒有任何影集',
   error: '載入失敗,重新整理再試一次',
   notFound: '找不到這一季',
-  videoLearning: '影片學習',
   study: '逐句解析',
   transcript: '整集台詞',
   moreLines: '載入更多台詞',
@@ -360,13 +359,6 @@ async function init() {
   renderLangSwitch()
   // 要先知道站台設定(有沒有開逐句解析、前幾集免費),每一集的按鈕才畫得對
   await window.teSession.configReady
-  const sister = ((window.teSession.config() || {}).links || {}).reelscript
-  const nav = document.querySelector('.site-nav')
-  if (sister && typeof sister.url === 'string' && sister.url.startsWith('https://') && nav) {
-    const link = el('a', '', TEXT.videoLearning)
-    link.href = sister.url
-    nav.insertBefore(link, nav.lastElementChild)
-  }
   const showId = params.get('show')
   const seasonNumber = Number.parseInt(params.get('season') || '', 10)
   try {

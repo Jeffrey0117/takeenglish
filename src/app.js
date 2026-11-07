@@ -13,6 +13,7 @@ const { createShowArtwork } = require('./show-artwork')
 const { createAnnotator } = require('./annotator')
 const { createTranscriptLibrary } = require('./transcripts')
 const { createDictionary } = require('./dictionary')
+const { createLessonSource, mountLessonRoutes } = require('./lessons')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
@@ -72,9 +73,8 @@ function createApp({
   newsletter = createNewsletter(),
   annotator = createAnnotator(),
   dictionary = createDictionary({ dir: path.join(__dirname, '..', 'data', 'dictionary') }),
+  lessons = createLessonSource(),
   transcripts = createTranscriptLibrary({ dir: path.join(__dirname, '..', 'data', 'transcripts') }),
-  // 給前端的站外連結(例如姊妹站),網址由環境變數給,不寫死在原始碼
-  links = {},
   letmeuse = {}
 }) {
   if (!tokens) throw new Error('createApp needs media tokens')
@@ -108,6 +108,7 @@ function createApp({
   })
 
   app.get('/watch', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'watch.html')))
+  app.get('/lessons', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'lessons.html')))
 
   app.use(express.static(PUBLIC_DIR))
 
@@ -189,7 +190,7 @@ function createApp({
         study: annotator.enabled || dictionary.enabled,
         // 點字查詞用的離線字典有沒有載入
         dictionary: dictionary.enabled,
-        links,
+        lessons: lessons.enabled,
         billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
       }
     })
@@ -210,6 +211,7 @@ function createApp({
     clientIp
   })
   mountDictionaryRoute(app, { dictionary, limiter, clientIp })
+  mountLessonRoutes(app, { source: lessons, viewer, plans, limiter, clientIp })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })

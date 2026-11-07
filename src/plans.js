@@ -21,7 +21,7 @@ function createPlans({ guestLimit = 3, memberLimit = 0, studyPerDay = 3, freeEpi
         id: 'guest',
         name: '訪客',
         price: 0,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: false }
       },
       {
         id: 'free',
@@ -32,14 +32,15 @@ function createPlans({ guestLimit = 3, memberLimit = 0, studyPerDay = 3, freeEpi
           subtitles: true,
           download: false,
           study: studyPerDay,
-          studyEpisodes: freeEpisodes
+          studyEpisodes: freeEpisodes,
+          lessonNotes: true
         }
       },
       {
         id: 'pro',
         name: 'Pro',
         price: 0,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true }
       }
     ]
   })

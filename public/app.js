@@ -26,7 +26,6 @@ const PLAN_COPY = {
   studyButton: '逐句解析',
   studyPerDay: (n) => `每天 ${n} 支`,
   unlimited: '不限',
-  videoLearning: '影片學習',
   all: '全部',
   current: '目前方案',
   login: '免費登入',
@@ -49,7 +48,6 @@ const state = {
     tiers: [],
     newsletter: false,
     study: false,
-    links: {},
     billing: { enabled: false, plan: null }
   },
   user: null,
@@ -543,7 +541,6 @@ const configReady = loadConfig()
 
 async function initAuth() {
   await configReady
-  renderSiteLinks()
   // 方案區塊不用等登入元件,設定到了就先畫
   renderPlans($('#plans'))
   $('#plans-link').classList.toggle('hidden', !authEnabled())
@@ -821,42 +818,6 @@ function playFrom(video, seconds) {
   if (video.readyState >= 1) return jump()
   video.addEventListener('loadedmetadata', jump, { once: true })
   video.play().catch(() => {})
-}
-
-// 導覽列加上通往姊妹站的連結;已登入就帶著登入狀態過去(不用再登入一次)
-function renderSiteLinks() {
-  const target = (state.config.links || {}).reelscript
-  if (!target || !target.url) return
-  for (const nav of document.querySelectorAll('.site-nav')) {
-    if (nav.querySelector('.nav-reelscript')) continue
-    const link = document.createElement('a')
-    link.className = 'nav-reelscript'
-    link.textContent = PLAN_COPY.videoLearning
-    link.href = target.url
-    link.onclick = (e) => handoff(e, target)
-    nav.insertBefore(link, nav.querySelector('.nav-plans'))
-  }
-}
-
-async function handoff(event, target) {
-  const token = getToken()
-  const base = state.config.letmeuse.baseUrl
-  if (!token || !target.appId || !base) return
-  event.preventDefault()
-  let destination = target.url
-  try {
-    const res = await fetch(`${base}/api/auth/sso/exchange`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ targetAppId: target.appId })
-    })
-    const json = await res.json()
-    const code = (json.data || json).code
-    if (res.ok && code) destination = `${target.url}/sso#code=${encodeURIComponent(code)}&next=${encodeURIComponent('/')}`
-  } catch {
-    /* 換不到通行碼就當一般連結,過去再登入 */
-  }
-  location.href = destination
 }
 
 // ---- 搜尋 ----
