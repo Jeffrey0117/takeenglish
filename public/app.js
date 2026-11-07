@@ -20,9 +20,19 @@ const CAPTION_LINE_PX = 21
 const PLAN_COPY = {
   heading: '方案',
   link: '方案',
-  names: { guest: '訪客', free: '免費會員', pro: 'Pro' },
-  prices: { guest: '不用登入', free: 'NT$0' },
-  rows: { results: '搜尋結果', subtitles: '字幕', study: '逐句解析', lessonModes: '影片學習模式', lessonUpload: '貼自己的 YouTube 影片', download: '下載 mp4' },
+  names: { free: '免費', pro: 'Pro' },
+  prices: { free: 'NT$0' },
+  rows: {
+    results: '片語搜尋結果',
+    transcript: '影片逐字稿',
+    study: '片段逐句解析',
+    lessonModes: '單句重複・慢速・聽寫',
+    summary: '重點整理與單字表',
+    lessonUpload: '貼自己的 YouTube 影片',
+    download: '下載 mp4'
+  },
+  full: '完整',
+  preview: '預覽',
   studyButton: '逐句解析',
   studyPerDay: (n) => `每天 ${n} 支`,
   unlimited: '不限',
@@ -377,96 +387,109 @@ function tierInfo(id) {
   return (state.config.tiers || []).find((t) => t.id === id) || null
 }
 
-function resultsLabel(limit) {
-  return limit === null || limit === undefined ? PLAN_COPY.all : `前 ${limit} 筆`
+// 只比兩欄:免費 vs Pro。只列兩邊不一樣的項目,讓差距一眼看出來;Pro 那欄做大做亮。
+// 內容來自 /api/config,跟後端擋的是同一份(訪客那一級不放,它不是可以「選」的方案)
+function planRows(free, pro) {
+  const f = free.features
+  const p = pro.features
+  const yes = '✓'
+  const no = '—'
+  const count = (n, unit) => (n === null || n === undefined ? PLAN_COPY.all : `前 ${n} ${unit}`)
+  const rows = [[PLAN_COPY.rows.results, count(f.results, '筆'), count(p.results, '筆')]]
+  if (state.config.lessons) rows.push([PLAN_COPY.rows.transcript, count(f.lessonLines, '句'), PLAN_COPY.full])
+  if (state.config.study) {
+    rows.push([PLAN_COPY.rows.study, f.study ? PLAN_COPY.studyPerDay(f.study) : no, p.study === null ? PLAN_COPY.unlimited : PLAN_COPY.studyPerDay(p.study)])
+  }
+  if (state.config.lessons) {
+    rows.push([PLAN_COPY.rows.lessonModes, f.lessonModes ? yes : no, p.lessonModes ? yes : no])
+    rows.push([PLAN_COPY.rows.summary, PLAN_COPY.preview, PLAN_COPY.full])
+    rows.push([PLAN_COPY.rows.lessonUpload, f.lessonUpload ? yes : no, p.lessonUpload ? yes : no])
+  }
+  rows.push([PLAN_COPY.rows.download, f.download ? yes : no, p.download ? yes : no])
+  return rows
 }
 
-// 三個等級並排:名稱、價格、各自拿到什麼、下一步的按鈕。內容來自 /api/config,跟後端擋的是同一份
+function planColumn(id, rows, column) {
+  const card = document.createElement('div')
+  card.className = `plan-card plan-${id}`
+  card.classList.toggle('current', id === state.tier || (id === 'free' && state.tier === 'free'))
+  const name = document.createElement('p')
+  name.className = 'plan-name'
+  name.textContent = PLAN_COPY.names[id]
+  const price = document.createElement('p')
+  price.className = 'plan-price'
+  const plan = proPlan()
+  if (id === 'pro') {
+    price.textContent = plan ? `NT$${Number(plan.price).toLocaleString()}` : PLAN_COPY.comingSoon
+    if (plan) {
+      const cycle = document.createElement('span')
+      cycle.className = 'plan-cycle'
+      cycle.textContent = plan.cycle === 'yearly' ? ' / 年' : ' / 月'
+      price.append(cycle)
+    }
+  } else {
+    price.textContent = PLAN_COPY.prices.free
+  }
+  card.append(name, price)
+
+  const list = document.createElement('ul')
+  list.className = 'plan-list'
+  for (const row of rows) {
+    const li = document.createElement('li')
+    const label = document.createElement('span')
+    label.className = 'plan-label'
+    label.textContent = row[0]
+    const value = document.createElement('span')
+    value.className = 'plan-value'
+    value.textContent = row[column]
+    li.classList.toggle('off', row[column] === '—')
+    li.append(label, value)
+    list.append(li)
+  }
+  card.append(list)
+
+  if (id === state.tier) {
+    const tag = document.createElement('p')
+    tag.className = 'plan-current'
+    tag.textContent = PLAN_COPY.current
+    card.append(tag)
+  } else if (id === 'free' && !state.user) {
+    const btn = document.createElement('button')
+    btn.className = 'auth-btn quiet'
+    btn.textContent = PLAN_COPY.login
+    btn.onclick = () => {
+      closeModal()
+      sdk()?.login()
+    }
+    card.append(btn)
+    if (state.config.newsletter) {
+      const note = document.createElement('p')
+      note.className = 'plan-note'
+      note.textContent = PLAN_COPY.loginNote
+      card.append(note)
+    }
+  } else if (id === 'pro' && plan) {
+    const btn = document.createElement('button')
+    btn.className = 'plan-buy'
+    btn.textContent = PLAN_COPY.upgrade
+    btn.onclick = openUpgrade
+    card.append(btn)
+  }
+  return card
+}
+
 function renderPlans(container) {
   container.replaceChildren()
-  const tiers = state.config.tiers || []
-  if (!authEnabled() || tiers.length === 0) return
-
+  const free = tierInfo('free')
+  const pro = tierInfo('pro')
+  if (!authEnabled() || !free || !pro) return
   const heading = document.createElement('h2')
   heading.className = 'plans-title'
   heading.textContent = PLAN_COPY.heading
   const grid = document.createElement('div')
   grid.className = 'plans-grid'
-  const plan = proPlan()
-
-  for (const tier of tiers) {
-    const card = document.createElement('div')
-    card.className = 'plan-card'
-    const isCurrent = tier.id === state.tier
-    card.classList.toggle('current', isCurrent)
-    card.classList.toggle('featured', tier.id === 'pro')
-
-    const name = document.createElement('p')
-    name.className = 'plan-name'
-    name.textContent = PLAN_COPY.names[tier.id] || tier.name
-    const price = document.createElement('p')
-    price.className = 'plan-price'
-    if (tier.id === 'pro') {
-      price.textContent = plan
-        ? `NT$${Number(plan.price).toLocaleString()} / ${plan.cycle === 'yearly' ? '年' : '月'}`
-        : PLAN_COPY.comingSoon
-    } else {
-      price.textContent = PLAN_COPY.prices[tier.id] || ''
-    }
-
-    const list = document.createElement('ul')
-    list.className = 'plan-list'
-    const rows = [
-      [PLAN_COPY.rows.results, resultsLabel(tier.features.results), true],
-      [PLAN_COPY.rows.subtitles, '', Boolean(tier.features.subtitles)],
-      ...(state.config.study
-        ? [[PLAN_COPY.rows.study, tier.features.study === null ? PLAN_COPY.unlimited : PLAN_COPY.studyPerDay(tier.features.study), tier.features.study !== 0]]
-        : []),
-      ...(state.config.lessons
-        ? [
-            [PLAN_COPY.rows.lessonModes, '', Boolean(tier.features.lessonModes)],
-            [PLAN_COPY.rows.lessonUpload, '', Boolean(tier.features.lessonUpload)]
-          ]
-        : []),
-      [PLAN_COPY.rows.download, '', Boolean(tier.features.download)]
-    ]
-    for (const [label, value, included] of rows) {
-      const li = document.createElement('li')
-      li.classList.toggle('off', !included)
-      li.textContent = value ? `${label} ${value}` : label
-      list.appendChild(li)
-    }
-    card.append(name, price, list)
-
-    if (isCurrent) {
-      const tag = document.createElement('p')
-      tag.className = 'plan-current'
-      tag.textContent = PLAN_COPY.current
-      card.appendChild(tag)
-    } else if (tier.id === 'free' && !state.user) {
-      const btn = document.createElement('button')
-      btn.className = 'auth-btn'
-      btn.textContent = PLAN_COPY.login
-      btn.onclick = () => {
-        closeModal()
-        sdk()?.login()
-      }
-      card.appendChild(btn)
-      if (state.config.newsletter) {
-        const note = document.createElement('p')
-        note.className = 'plan-note'
-        note.textContent = PLAN_COPY.loginNote
-        card.appendChild(note)
-      }
-    } else if (tier.id === 'pro' && plan) {
-      const btn = document.createElement('button')
-      btn.className = 'auth-btn'
-      btn.textContent = PLAN_COPY.upgrade
-      btn.onclick = openUpgrade
-      card.appendChild(btn)
-    }
-    grid.appendChild(card)
-  }
+  const rows = planRows(free, pro)
+  grid.append(planColumn('free', rows, 1), planColumn('pro', rows, 2))
   container.append(heading, grid)
 }
 

@@ -559,3 +559,24 @@ body.searching .nav-corner { display: none; }
   .site-nav a { font-size: 13px; }
   .nav-corner { top: 18px; left: 16px; width: auto; }
 }
+
+/* 方案:兩欄對比,Pro 做大做亮 */
+.plans { max-width: 760px; }
+.plans-grid { grid-template-columns: 1fr 1.15fr; align-items: center; gap: 18px; }
+.plan-card { text-align: left; }
+.plan-free { opacity: 0.85; }
+.plan-pro { padding: 28px 24px 24px; border: 2px solid var(--yellow); background: linear-gradient(180deg, rgba(255, 214, 10, 0.1), #141414 45%); box-shadow: 0 0 0 1px rgba(255, 214, 10, 0.25), 0 18px 50px rgba(255, 214, 10, 0.12); }
+.plan-pro .plan-name { color: var(--yellow); font-size: 22px; letter-spacing: 3px; }
+.plan-pro .plan-price { font-size: 34px; color: var(--text); }
+.plan-cycle { font-size: 15px; color: var(--muted); font-weight: 800; }
+.plan-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; }
+.plan-list li::before { content: none; }
+.plan-list li.off { text-decoration: none; }
+.plan-label { color: var(--text); }
+.plan-value { font-weight: 900; white-space: nowrap; }
+.plan-free .plan-value { color: var(--muted); }
+.plan-pro .plan-value { color: var(--yellow); }
+.plan-list li.off .plan-label { color: var(--muted); }
+.plan-buy { align-self: stretch; padding: 13px; background: var(--yellow); border: 0; color: #000; font-size: 16px; font-weight: 900; letter-spacing: 2px; cursor: pointer; }
+.plan-buy:hover { background: #fff; }
+@media (max-width: 640px) { .plans-grid { grid-template-columns: 1fr; } .plan-pro { order: -1; } }
