@@ -184,9 +184,19 @@ function mountLessonRoutes(app, { source, viewer, plans, limiter, clientIp }) {
         modes,
         totalLines: lesson.segments.length,
         lockedLines: lesson.segments.length - visible.length,
+        // 影片播到這裡就是牆(第一句被鎖住的句子開始的地方)
+        lockedFrom: visible.length < lesson.segments.length ? lesson.segments[visible.length].start : null,
         segments: visible.map((s) => (notes ? s : { ...s, zh: '', vocab: [] })),
-        // 重點整理是學習模式的一部分,只給 Pro
-        summary: modes ? { keyPoints: lesson.keyPoints, quotes: lesson.quotes } : null
+        // 重點整理:Pro 全部;其他人先看第一個重點和第一句金句,其餘只告訴他還有幾個
+        summary: modes
+          ? { keyPoints: lesson.keyPoints, quotes: lesson.quotes, preview: false, lockedPoints: 0, lockedQuotes: 0 }
+          : {
+              keyPoints: lesson.keyPoints.slice(0, 1),
+              quotes: lesson.quotes.slice(0, 1),
+              preview: true,
+              lockedPoints: Math.max(lesson.keyPoints.length - 1, 0),
+              lockedQuotes: Math.max(lesson.quotes.length - 1, 0)
+            }
       }
     })
   })

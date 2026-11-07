@@ -1,5 +1,6 @@
 // 影片學習:列表 → 單支影片(左邊影片、右邊逐句中英字幕,每個字可點,點一句從那句開始播)
-// 學習模式(Pro):單句重複、慢速、遮字幕聽寫、字幕中英切換、重點整理
+// 學習模式人人可以按、可以用(單句重複、慢速、聽寫、字幕切換、重點整理);
+// 能用的範圍是看得到的那幾句,往後播或想看完整重點才撞牆,這時才推銷升級。
 const TEXT = {
   heading: '影片學習',
   sub: '看短影片學英文:逐句中英字幕,每個字點了就懂。',
@@ -11,14 +12,11 @@ const TEXT = {
   notFound: '找不到這支影片',
   back: '← 所有影片',
   noVideo: '這支影片暫時不能播放,字幕照常可以看',
-  loginForNotes: '登入後可以看中文翻譯與重點片語',
   login: '免費登入',
   upgrade: '升級 Pro',
-  lockedGuest: (n) => `還有 ${n} 句沒顯示,免費登入可以多看幾句`,
-  lockedMember: (n) => `還有 ${n} 句沒顯示,Pro 看完整逐字稿`,
+  lockedLines: (n) => `後面還有 ${n} 句`,
+  seeRest: '看完整支',
   modesTitle: '學習模式',
-  proOnly: 'PRO',
-  modesLocked: '學習模式是 Pro 功能',
   display: { en: '英文', both: '中英', zh: '中文' },
   repeat: '單句重複',
   speed: (rate) => `${rate}x`,
@@ -28,6 +26,16 @@ const TEXT = {
   keyPoints: '重點',
   quotes: '金句',
   words: '單字表',
+  summaryMore: (points, quotes) =>
+    [points ? `還有 ${points} 個重點` : '', quotes ? `${quotes} 句金句` : ''].filter(Boolean).join('、'),
+  // 撞牆時的升級視窗(只在這裡推銷)
+  wallTitle: '這支影片後面還有',
+  wallPrice: (price, cycle) => `NT$${Number(price).toLocaleString()} / ${cycle === 'yearly' ? '年' : '月'}`,
+  wallPoints: ['完整影片與逐字稿', '單句重複、慢速、聽寫不受限', '完整重點整理與單字表', '片語搜尋看全部結果'],
+  wallGuestHint: '先免費登入,可以多看幾句',
+  wallPlans: '看方案',
+  wallWorking: '前往付款頁…',
+  wallFailed: '付款服務暫時連不上,稍後再試',
   minutes: (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 }
 const SPEEDS = [1, 0.75, 0.5]
@@ -105,13 +113,6 @@ function playFrom(video, seconds) {
   video.play().catch(() => {})
 }
 
-function upgradeButton() {
-  const a = el('a', 'auth-btn', TEXT.upgrade)
-  a.href = '/#plans'
-  a.style.textDecoration = 'none'
-  return a
-}
-
 function loginButton() {
   const b = el('button', 'auth-btn', TEXT.login)
   b.type = 'button'
@@ -119,15 +120,74 @@ function loginButton() {
   return b
 }
 
-// 沒權限的人按到學習模式:不偷偷失效,直接告訴他這是 Pro 功能
-function lockedNotice(box) {
-  box.replaceChildren()
-  const note = el('p', 'study-note', TEXT.modesLocked)
-  note.append(upgradeButton())
-  box.append(note)
+async function checkout(btn, note) {
+  btn.disabled = true
+  note.textContent = TEXT.wallWorking
+  try {
+    const token = window.teSession.getToken()
+    const res = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: '{}'
+    })
+    const body = await res.json().catch(() => ({}))
+    const url = body.data && body.data.checkoutUrl
+    if (res.ok && typeof url === 'string' && /^https?:[/][/]/.test(url)) {
+      location.href = url
+      return
+    }
+    if (res.status === 409) {
+      location.reload()
+      return
+    }
+  } catch {
+    /* 落到下面的錯誤訊息 */
+  }
+  btn.disabled = false
+  note.textContent = TEXT.wallFailed
 }
 
-// 重點整理:主旨、重點、金句、這支影片的單字表
+// 撞牆:影片播到被鎖的地方、或想看完整內容時,才跳出升級視窗
+function showWall(lesson) {
+  if (document.querySelector('.wall')) return
+  const billing = (window.teSession.config() || {}).billing || {}
+  const overlay = el('div', 'modal wall')
+  const card = el('div', 'modal-card')
+  const close = el('button', 'modal-close', '×')
+  close.type = 'button'
+  close.onclick = () => overlay.remove()
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove()
+  }
+  card.append(close, el('p', 'modal-title', TEXT.wallTitle))
+  if (lesson.lockedLines) card.append(el('p', 'wall-count', TEXT.lockedLines(lesson.lockedLines)))
+  if (billing.enabled && billing.plan) card.append(el('p', 'modal-price', TEXT.wallPrice(billing.plan.price, billing.plan.cycle)))
+  const list = el('ul', 'modal-list')
+  for (const point of TEXT.wallPoints) list.append(el('li', '', point))
+  card.append(list)
+  const note = el('p', 'modal-note', '')
+  card.append(note)
+  if (!lesson.signedIn) {
+    note.textContent = TEXT.wallGuestHint
+    const login = loginButton()
+    login.onclick = () => {
+      overlay.remove()
+      window.teSession.login()
+    }
+    const plans = el('a', 'auth-btn quiet', TEXT.wallPlans)
+    plans.href = '/#plans'
+    card.append(login, plans)
+  } else {
+    const buy = el('button', 'auth-btn', TEXT.upgrade)
+    buy.type = 'button'
+    buy.onclick = () => checkout(buy, note)
+    card.append(buy)
+  }
+  overlay.append(card)
+  document.body.append(overlay)
+}
+
+// 重點整理:主旨、重點、金句、這支影片的單字表。非 Pro 看到的是預覽,後面接「還有幾個」
 function summaryPanel(lesson) {
   const box = el('div', 'lesson-summary')
   if (lesson.theme) box.append(el('p', 'lesson-summary-theme', lesson.theme))
@@ -141,6 +201,12 @@ function summaryPanel(lesson) {
   if (s.quotes && s.quotes.length) {
     box.append(el('h3', 'lesson-summary-h', TEXT.quotes))
     for (const quote of s.quotes) box.append(renderLine({ text: quote.en, zh: quote.zh, vocab: [] }))
+  }
+  if (s.preview && (s.lockedPoints || s.lockedQuotes)) {
+    const more = el('button', 'lesson-summary-more', `${TEXT.summaryMore(s.lockedPoints, s.lockedQuotes)} →`)
+    more.type = 'button'
+    more.onclick = () => showWall(lesson)
+    box.append(more)
   }
   const seen = new Set()
   const words = []
@@ -206,11 +272,6 @@ async function renderLesson(id) {
   left.append(el('h1', 'lesson-heading', lesson.title))
   left.append(el('p', 'lesson-channel', lesson.channel))
   if (lesson.theme) left.append(el('p', 'lesson-theme', lesson.theme))
-  if (!lesson.notes) {
-    const note = el('p', 'study-note', TEXT.loginForNotes)
-    note.append(loginButton())
-    left.append(note)
-  }
 
   // ---- 逐字稿 ----
   const rows = lesson.segments.map((segment, index) => {
@@ -231,8 +292,11 @@ async function renderLesson(id) {
   })
   if (lesson.lockedLines > 0) {
     const lock = el('div', 'lesson-lock')
-    lock.append(el('p', 'lock-title', lesson.signedIn ? TEXT.lockedMember(lesson.lockedLines) : TEXT.lockedGuest(lesson.lockedLines)))
-    lock.append(lesson.signedIn ? upgradeButton() : loginButton())
+    lock.append(el('p', 'lock-title', TEXT.lockedLines(lesson.lockedLines)))
+    const more = el('button', 'auth-btn', TEXT.seeRest)
+    more.type = 'button'
+    more.onclick = () => showWall(lesson)
+    lock.append(more)
     panel.append(lock)
   }
 
@@ -244,29 +308,23 @@ async function renderLesson(id) {
   }
 
   // ---- 學習模式工具列 ----
-  const buttons = {}
-  function tool(key, label, onClick, { pro = true } = {}) {
+  function tool(label, onClick) {
     const btn = el('button', 'study-btn lesson-tool', label)
     btn.type = 'button'
-    if (pro && !lesson.modes) btn.append(el('span', 'ep-lock', TEXT.proOnly))
-    btn.onclick = () => {
-      if (pro && !lesson.modes) return lockedNotice(extra)
-      onClick(btn)
-    }
-    buttons[key] = btn
+    btn.onclick = () => onClick(btn)
     toolbar.append(btn)
     return btn
   }
   toolbar.append(el('span', 'lesson-toolbar-title', TEXT.modesTitle))
   if (lesson.notes) {
-    tool('display', TEXT.display[state.display], (btn) => {
+    tool(TEXT.display[state.display], (btn) => {
       state.display = DISPLAY_ORDER[(DISPLAY_ORDER.indexOf(state.display) + 1) % DISPLAY_ORDER.length]
       btn.textContent = TEXT.display[state.display]
       applyDisplay()
-    }, { pro: false })
+    })
   }
   if (video) {
-    tool('repeat', TEXT.repeat, (btn) => {
+    tool(TEXT.repeat, (btn) => {
       state.repeat = !state.repeat
       btn.classList.toggle('on', state.repeat)
       // 還沒選句子就從目前播到的那句開始重複
@@ -275,31 +333,37 @@ async function renderLesson(id) {
         state.active = Math.max(0, rows.findIndex((r) => now >= r.start && now < r.end))
       }
     })
-    tool('speed', TEXT.speed(SPEEDS[0]), (btn) => {
+    tool(TEXT.speed(SPEEDS[0]), (btn) => {
       state.speed = (state.speed + 1) % SPEEDS.length
       video.playbackRate = SPEEDS[state.speed]
       btn.textContent = TEXT.speed(SPEEDS[state.speed])
       btn.classList.toggle('on', state.speed !== 0)
     })
   }
-  tool('dictation', TEXT.dictation, (btn) => {
+  tool(TEXT.dictation, (btn) => {
     state.dictation = !state.dictation
     btn.classList.toggle('on', state.dictation)
     extra.replaceChildren()
     if (state.dictation) extra.append(el('p', 'study-note', TEXT.dictationHint))
     applyDisplay()
   })
-  tool('summary', TEXT.summary, (btn) => {
+  tool(TEXT.summary, (btn) => {
     const open = !btn.classList.contains('on')
     btn.classList.toggle('on', open)
     extra.replaceChildren()
     if (open) extra.append(summaryPanel(lesson))
   })
 
-  // 播到哪一句就亮哪一句;單句重複時,播完那句就跳回句首
+  // 播到哪一句就亮哪一句;單句重複時播完那句就跳回句首;播到被鎖的地方就撞牆
   if (video) {
     video.addEventListener('timeupdate', () => {
       const now = video.currentTime
+      if (lesson.lockedFrom !== null && now >= lesson.lockedFrom) {
+        video.pause()
+        video.currentTime = Math.max(lesson.lockedFrom - 0.2, 0)
+        showWall(lesson)
+        return
+      }
       if (state.repeat && state.active >= 0 && rows[state.active]) {
         const line = rows[state.active]
         if (now >= line.end || now < line.start - 0.5) {

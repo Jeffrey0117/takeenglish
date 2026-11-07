@@ -58,3 +58,8 @@
 .lesson-word { color: var(--yellow); font-weight: 800; text-decoration: none; }
 .lesson-word:hover { text-decoration: underline; }
 .lesson-word-zh { color: var(--text); font-weight: 600; }
+.lesson-summary-more { display: block; margin-top: 12px; padding: 0; background: transparent; border: 0; color: var(--yellow); font-size: 14px; font-weight: 800; cursor: pointer; }
+.lesson-summary-more:hover { text-decoration: underline; }
+.wall-count { margin-top: 6px; color: var(--yellow); font-size: 16px; font-weight: 900; }
+.wall .modal-card .auth-btn { margin-top: 14px; }
+.wall .modal-card .auth-btn.quiet { margin-left: 8px; text-decoration: none; display: inline-block; }

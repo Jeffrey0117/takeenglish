@@ -29,7 +29,7 @@ function createPlans({
         id: 'guest',
         name: '訪客',
         price: 0,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: false, lessonLines: guestLessonLines, lessonModes: false }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false }
       },
       {
         id: 'free',

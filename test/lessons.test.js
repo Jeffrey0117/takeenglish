@@ -99,20 +99,16 @@ test('lessons: 列表只放有字幕、代號合法的影片,縮圖走本站網�
   }
 })
 
-test('lessons: 訪客拿到英文(可以查字典),中文和重點片語要登入', async () => {
+test('lessons: 訪客也看得到中文與重點片語;引擎的檔名不外露', async () => {
   const { server, base } = await startApp()
   try {
     const guest = (await (await fetch(`${base}/api/lessons/${ID}`)).json()).data
-    assert.equal(guest.notes, false)
+    assert.equal(guest.notes, true)
     assert.equal(guest.video, `/lesson-media/${ID}/video`)
-    assert.deepEqual(guest.segments[0], { start: 0.9, end: 3.4, text: 'Here we are, one of the elephants.', zh: '', vocab: [] })
-    assert.ok(!JSON.stringify(guest).includes('jNQXAC9IVRw'), 'engine file name must not leak')
-
-    const member = (await (await fetch(`${base}/api/lessons/${ID}`, { headers: bearer() })).json()).data
-    assert.equal(member.notes, true)
-    assert.deepEqual(member.segments[0], {
+    assert.deepEqual(guest.segments[0], {
       start: 0.9, end: 3.4, text: 'Here we are, one of the elephants.', zh: '這裡有一隻大象。', vocab: [{ word: 'elephants', zh: '大象' }]
     })
+    assert.ok(!JSON.stringify(guest).includes('jNQXAC9IVRw'), 'engine file name must not leak')
   } finally {
     server.close()
   }
@@ -185,20 +181,31 @@ test('lessons: 逐字稿只露一部分 — 訪客 5 句、免費會員 10 句�
     assert.equal(guest.totalLines, 12)
     assert.equal(guest.lockedLines, 7)
     assert.equal(guest.signedIn, false)
+    // 第 6 句(第一句被鎖住的)開始的秒數,影片播到這裡就撞牆
+    assert.equal(guest.lockedFrom, EXTRA[3].start)
     assert.ok(!JSON.stringify(guest).includes('Extra line 4.'), 'locked lines must not be sent')
 
     const free = (await (await fetch(`${base}/api/lessons/${ID}`, { headers: bearer() })).json()).data
     assert.equal(free.segments.length, 10)
     assert.equal(free.lockedLines, 2)
     assert.equal(free.modes, false)
-    assert.equal(free.summary, null)
+    assert.equal(free.lockedFrom, EXTRA[8].start)
+    // 非 Pro 的重點整理是預覽:只給第一個,其餘只說還有幾個
+    assert.deepEqual(free.summary, {
+      keyPoints: ['大象鼻子很長'],
+      quotes: [{ en: 'That is pretty much it.', zh: '就是這樣。' }],
+      preview: true,
+      lockedPoints: 0,
+      lockedQuotes: 0
+    })
 
     const pro = (await (await fetch(`${base}/api/lessons/${ID}`, { headers: bearer('pro@example.com') })).json()).data
     assert.equal(pro.tier, 'pro')
     assert.equal(pro.segments.length, 12)
     assert.equal(pro.lockedLines, 0)
     assert.equal(pro.modes, true)
-    assert.deepEqual(pro.summary, { keyPoints: ['大象鼻子很長'], quotes: [{ en: 'That is pretty much it.', zh: '就是這樣。' }] })
+    assert.equal(pro.lockedFrom, null)
+    assert.equal(pro.summary.preview, false)
   } finally {
     server.close()
   }
