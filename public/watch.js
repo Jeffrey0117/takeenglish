@@ -22,7 +22,6 @@ const TEXT = {
   study: '逐句解析',
   transcript: '整集台詞',
   moreLines: '載入更多台詞',
-  proOnly: 'PRO',
   login: '登入',
   plans: '看方案',
   sourceLead: '劇情介紹與集數資料來自維基百科',
@@ -201,13 +200,6 @@ function studyEnabled() {
   return Boolean(config && config.study)
 }
 
-// 前幾集開放解析(訪客也能試);null = 全部開放
-function freeEpisodes() {
-  const config = window.teSession.config()
-  const guest = config && (config.tiers || []).find((tier) => tier.id === 'guest')
-  return guest ? guest.features.studyEpisodes : 0
-}
-
 function studyNote(box, info) {
   const { el } = window.teStudy
   const note = el('p', 'study-note', info.message)
@@ -273,8 +265,6 @@ async function toggleEpisodeStudy(body, season, ep, kind, btn) {
 function episodeActions(body, season, ep) {
   const { el } = window.teStudy
   const actions = el('div', 'ep-actions')
-  const open = freeEpisodes()
-  const locked = open !== null && ep.number > open
   const add = (kind, label) => {
     const btn = el('button', 'study-btn', label)
     btn.type = 'button'
@@ -284,7 +274,7 @@ function episodeActions(body, season, ep) {
   if (studyEnabled()) add('study', TEXT.study)
   if (studyEnabled() && ep.hasTranscript) add('transcript', TEXT.transcript)
   if (actions.children.length === 0) return null
-  if (locked) actions.append(el('span', 'ep-lock', TEXT.proOnly))
+  // 不貼 PRO 標籤:按下去才知道要升級(撞牆才推銷,見 paywall-kit 方案頁鐵則)
   return actions
 }
 
