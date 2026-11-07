@@ -29,7 +29,7 @@ const TEXT = {
   summaryMore: (points, quotes) =>
     [points ? `還有 ${points} 個重點` : '', quotes ? `${quotes} 句金句` : ''].filter(Boolean).join('、'),
   // 撞牆時的升級視窗(只在這裡推銷)
-  wallTitle: '這支影片後面還有',
+  wallTitle: '看完整支影片',
   wallPrice: (price, cycle) => `NT$${Number(price).toLocaleString()} / ${cycle === 'yearly' ? '年' : '月'}`,
   wallPoints: ['完整影片與逐字稿', '單句重複、慢速、聽寫不受限', '完整重點整理與單字表', '片語搜尋看全部結果'],
   wallGuestHint: '先免費登入,可以多看幾句',
