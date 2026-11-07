@@ -157,8 +157,13 @@ async function renderLesson(id) {
 
   layout.append(left, panel)
   main.replaceChildren(back, layout)
-  // 登入狀態變了(登入/登出)就重新載入,拿到對應權限的內容
-  window.teSession.onChange(() => location.reload())
+  // 登入狀態真的變了(登入/登出)才重新載入。登入元件啟動時也會回報一次「目前是誰」,
+  // 那一次身分沒變,不能重載,不然會一直重整
+  const identity = (user) => (user ? user.id || user.sub || user.email || 'signed-in' : null)
+  const loadedAs = identity(window.teSession.user())
+  window.teSession.onChange((user) => {
+    if (identity(user) !== loadedAs) location.reload()
+  })
 }
 
 async function init() {
