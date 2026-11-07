@@ -102,3 +102,24 @@
 /* 小卡浮在字的下方(不推動文字) */
 .study-line { position: relative; }
 .study-tip { position: absolute; z-index: 30; margin: 0; display: flex; width: max-content; max-width: min(420px, calc(100% - 8px)); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
+
+/* 浮出的小卡:一張直式的卡片,上面是字與音標,下面一行一個解釋,最下面是連結 */
+.study-tip {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 260px;
+  max-width: calc(100% - 8px);
+  padding: 12px 14px;
+  background: #141414;
+  border: 1px solid var(--yellow);
+  border-radius: 6px;
+  white-space: normal;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.study-tip-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.study-tip-head b { font-size: 17px; }
+.study-tip .study-tip-zh { display: block; color: var(--text); font-weight: 600; }
+.study-tip .study-tip-note { display: block; }
+.study-tip .study-tip-link { display: block; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--line); }
