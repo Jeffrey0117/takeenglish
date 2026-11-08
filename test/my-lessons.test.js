@@ -57,7 +57,7 @@ function startApp({ internalKey = 'internal-key' } = {}) {
   const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
   const app = createApp({
     clipcafe: { search: async () => ({ total: 0, results: [] }) },
-    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'http://jwks.test', fetchImpl }) }),
+    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'https://jwks.test', fetchImpl }) }),
     tokens: TEST_TOKENS,
     lessons: createLessonSource({ baseUrl: 'http://engine.test', internalKey, fetchImpl: engine.fetchImpl }),
     paygate: createPaygate({

@@ -3,7 +3,10 @@ const assert = require('node:assert')
 const { createJwksCache } = require('../src/jwks')
 const { createTestKeys, fakeJwksFetch } = require('./helpers')
 
-const JWKS_URL = 'http://jwks.test/api/jwks'
+// https 不是裝飾：jwks-verify-kit 0.4.0 起，非 https 的 JWKS 網址（localhost 除外）
+// 會在建構時 throw —— 那個回應就是信任根，明文等於任何中間人都能換掉公鑰。
+// 這裡的 fetchImpl 是注入的，所以不會真的發請求，但網址照規則寫。
+const JWKS_URL = 'https://jwks.test/api/jwks'
 const silent = () => {}
 
 test('fetches the key set once and serves later lookups from cache', async () => {

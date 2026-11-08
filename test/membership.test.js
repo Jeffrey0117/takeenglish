@@ -81,7 +81,7 @@ function startApp({ paygate = fakePaygateServer(), publicUrl = 'https://site.exa
     auth: createAuth({
       appId: APP_ID,
       secret: 's',
-      jwks: createJwksCache({ url: 'http://jwks.test/api/jwks', fetchImpl })
+      jwks: createJwksCache({ url: 'https://jwks.test/api/jwks', fetchImpl })
     }),
     tokens: TEST_TOKENS,
     freeLimit: 3,

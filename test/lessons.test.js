@@ -66,7 +66,7 @@ function startApp(engine = fakeEngine()) {
   const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
   const app = createApp({
     clipcafe: { search: async () => ({ total: 0, results: [] }) },
-    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'http://jwks.test', fetchImpl }) }),
+    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'https://jwks.test', fetchImpl }) }),
     tokens: TEST_TOKENS,
     lessons: createLessonSource({ baseUrl: 'http://engine.test', fetchImpl: engine.fetchImpl }),
     paygate: createPaygate({
@@ -147,7 +147,7 @@ test('lessons: 引擎掛掉時回 502,沒設定引擎時 503;頁面本身照常'
   const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
   const app = createApp({
     clipcafe: { search: async () => ({ total: 0, results: [] }) },
-    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'http://jwks.test', fetchImpl }) }),
+    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'https://jwks.test', fetchImpl }) }),
     tokens: TEST_TOKENS,
     letmeuse: {}
   })

@@ -35,7 +35,7 @@ function fakeClipcafe() {
 function startApp({ freeLimit = 3 } = {}) {
   const clipcafe = fakeClipcafe()
   const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
-  const jwks = createJwksCache({ url: 'http://jwks.test/api/jwks', fetchImpl })
+  const jwks = createJwksCache({ url: 'https://jwks.test/api/jwks', fetchImpl })
   const app = createApp({
     clipcafe,
     auth: createAuth({ appId: APP_ID, secret: SECRET, jwks }),

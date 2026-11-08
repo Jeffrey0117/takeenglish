@@ -241,7 +241,7 @@ function startApp({ subscribers = {}, transcriptsDir = tempDir('tr-'), annotator
       search: async () => ({ total: 0, results: [] }),
       subtitles: subtitles || (async () => ({ status: 200, text: VTT }))
     },
-    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'http://jwks.test', fetchImpl: jwksFetch }) }),
+    auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'https://jwks.test', fetchImpl: jwksFetch }) }),
     tokens: TEST_TOKENS,
     paygate: createPaygate({ baseUrl: 'http://paygate.test', token: 't', alsoProducts: ['reelscript'], fetchImpl: paygateFetch, onError: () => {} }),
     annotator: createAnnotator({ url: annotatorUrl, cacheDir: tempDir('ann-'), fetchImpl: engine.fetchImpl, onError: () => {} }),

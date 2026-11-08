@@ -19,7 +19,7 @@ const KEYS = createTestKeys('kid-1')
 function buildAuth({ appId = APP_ID, secret = SECRET, jwks = [KEYS.jwk] } = {}) {
   const { state, fetchImpl } = fakeJwksFetch(jwks)
   const cache = createJwksCache({
-    url: 'http://jwks.test/api/jwks',
+    url: 'https://jwks.test/api/jwks',
     fetchImpl,
     onError: () => {}
   })
