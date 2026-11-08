@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
+    "jwks-verify-kit": "github:Jeffrey0117/jwks-verify-kit",
     "paywall-kit": "github:Jeffrey0117/paywall-kit",
     "ratelimit-kit": "github:Jeffrey0117/ratelimit-kit"
   },
