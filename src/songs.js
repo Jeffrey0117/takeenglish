@@ -96,9 +96,67 @@ function createSongLibrary({
   }
 }
 
+// 會員自己貼連結加的歌:data/songs/users/<owner>/<id>.json。
+// 跟公開歌庫分開放,一來不會互相蓋到,二來誰加的就只有誰看得到。
+const OWNER_PATTERN = /^te-[A-Za-z0-9_-]{1,80}$/
+const MAX_PER_USER = 50
+
+function createUserSongs({ dir } = {}) {
+  const ok = (owner, id) => Boolean(dir) && OWNER_PATTERN.test(owner) && ID_PATTERN.test(id)
+  const folder = (owner) => path.join(dir, owner)
+  const fileFor = (owner, id) => path.join(folder(owner), `${id}.json`)
+
+  function read(owner, id) {
+    if (!ok(owner, id)) return null
+    try {
+      return normalizeSong(JSON.parse(fs.readFileSync(fileFor(owner, id), 'utf8')), id)
+    } catch {
+      return null
+    }
+  }
+
+  function list(owner) {
+    if (!dir || !OWNER_PATTERN.test(owner)) return []
+    let files = []
+    try {
+      files = fs.readdirSync(folder(owner)).filter((name) => name.endsWith('.json')).sort()
+    } catch {
+      return []
+    }
+    return files.map((name) => read(owner, name.slice(0, -5))).filter(Boolean)
+  }
+
+  return {
+    get enabled() {
+      return Boolean(dir)
+    },
+    list,
+    get: read,
+    count: (owner) => list(owner).length,
+    has: (owner, id) => Boolean(read(owner, id)),
+    // 同一首重複加就覆蓋(重新抓一次字幕是合理的意圖),回存好的那首
+    save(owner, song) {
+      if (!ok(owner, song.id)) return null
+      fs.mkdirSync(folder(owner), { recursive: true })
+      fs.writeFileSync(fileFor(owner, song.id), `${JSON.stringify(song, null, 2)}\n`)
+      return read(owner, song.id)
+    },
+    remove(owner, id) {
+      if (!ok(owner, id)) return false
+      try {
+        fs.unlinkSync(fileFor(owner, id))
+        return true
+      } catch {
+        return false
+      }
+    },
+    full: MAX_PER_USER
+  }
+}
+
 // 誰能練由 plans 決定:typing = 進不進得去(訪客不行),typingLines = 這首歌開放幾句。
 // 鎖住的句子連內容都不送出去 — 跟搜尋結果一樣,F12 看不到多的。
-function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp }) {
+function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs = createUserSongs(), importer = null, usage = null }) {
   function tooMany(req, res, bucket, max) {
     if (limiter.check(`${bucket}:${clientIp(req)}`, max).allowed) return false
     res.set('Retry-After', '30')
@@ -106,9 +164,11 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp }) {
     return true
   }
 
-  function present(song, user, tier) {
+  // own = 會員自己貼連結加進來的歌。他自己的東西不切句數(牆擺在「一天能加幾支」,
+  // 不是「自己加的歌只能練一半」—— 跟影片學習的「我的影片」同一個規矩)
+  function present(song, user, tier, own = false) {
     const typing = plans.can(tier, 'typing')
-    const limit = typing ? plans.quota(tier, 'typingLines') : 0
+    const limit = own ? null : typing ? plans.quota(tier, 'typingLines') : 0
     // null = 不限,數字 = 前幾句,其他(例如未知的等級讓 paywall-kit 回 false)一律一句都不給
     const visible = limit === null ? song.lines : typeof limit === 'number' ? song.lines.slice(0, limit) : []
     const lastVisible = visible[visible.length - 1]
@@ -120,7 +180,8 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp }) {
       level: song.level,
       tier,
       signedIn: Boolean(user),
-      typing,
+      typing: own ? true : typing,
+      own,
       totalLines: song.lines.length,
       lockedLines: song.lines.length - visible.length,
       // 影片播到這裡就是牆。取「最後一句開放的句子唱完」而不是「第一句鎖住的句子開始」—
@@ -146,6 +207,110 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp }) {
     res.set('Cache-Control', 'no-store')
     return res.json({ success: true, data: present(song, user, tier) })
   })
+
+  // ---- 會員自己貼 YouTube 連結加的歌 ----
+
+  // 一個人一把鑰匙。用 sub(LetMeUse 的使用者代號)而不是 email:換了信箱還是同一個人
+  const ownerOf = (user) => `te-${String(user.sub || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)}`
+
+  const canImport = () => Boolean(importer && mySongs.enabled)
+
+  function summaryOf(song) {
+    return {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      level: song.level,
+      lines: song.lines.length,
+      duration: Math.round(song.lines[song.lines.length - 1].end),
+      thumb: `https://i.ytimg.com/vi/${song.youtubeId}/hqdefault.jpg`,
+      own: true
+    }
+  }
+
+  app.get('/api/my-songs', async (req, res) => {
+    if (!canImport()) return fail(res, 503, 'import_unavailable')
+    const { user, tier } = await viewer(req)
+    if (!user) return fail(res, 401, 'unauthorized')
+    if (tooMany(req, res, 'my-songs', 120)) return
+    const limit = plans.quota(tier, 'songUpload')
+    const owner = ownerOf(user)
+    const quota = usage ? usage.check(user.sub, '', limit) : { used: 0, limit }
+    res.set('Cache-Control', 'no-store')
+    return res.json({
+      success: true,
+      data: {
+        canAdd: limit === null || limit > 0,
+        used: quota.used,
+        limit,
+        items: mySongs.list(owner).map(summaryOf)
+      }
+    })
+  })
+
+  app.post('/api/my-songs', async (req, res) => {
+    if (!canImport()) return fail(res, 503, 'import_unavailable')
+    const { user, tier } = await viewer(req)
+    if (!user) return fail(res, 401, 'unauthorized')
+    const limit = plans.quota(tier, 'songUpload')
+    // 這個等級根本不能加(訪客/未知等級):402,不是 429
+    if (limit !== null && limit <= 0) return fail(res, 402, 'upgrade_required')
+    // 跑 yt-dlp 要花錢(時間)也會被 YouTube 盯,限得比讀取嚴格得多
+    if (tooMany(req, res, 'my-songs-add', 10)) return
+
+    const url = typeof (req.body && req.body.url) === 'string' ? req.body.url.trim() : ''
+    if (!url || url.length > 500) return fail(res, 400, 'bad_url')
+
+    const owner = ownerOf(user)
+    if (mySongs.count(owner) >= mySongs.full) return fail(res, 409, 'library_full')
+
+    // 先看額度夠不夠(真的加成功才扣)
+    const ticket = usage ? usage.check(user.sub, url, limit) : { allowed: true, used: 0, limit }
+    if (!ticket.allowed) {
+      res.set('Cache-Control', 'no-store')
+      return res.status(429).json({ success: false, error: 'daily_limit', limit: ticket.limit })
+    }
+
+    let song
+    try {
+      song = await importer(url)
+    } catch (err) {
+      const known = ['bad_url', 'not_embeddable', 'no_subtitles', 'rate_limited', 'no_title']
+      if (known.includes(err.code)) {
+        res.set('Cache-Control', 'no-store')
+        return res.status(err.code === 'rate_limited' ? 503 : 400).json({ success: false, error: err.code })
+      }
+      process.stderr.write(`[songs] import failed: ${err.code || ''} ${err.message}\n`)
+      return fail(res, 502, 'import_failed')
+    }
+
+    const saved = mySongs.save(owner, song)
+    if (!saved) return fail(res, 500, 'save_failed')
+    if (usage) usage.consume(user.sub, url, limit)
+    res.set('Cache-Control', 'no-store')
+    return res.json({ success: true, data: summaryOf(saved) })
+  })
+
+  app.get('/api/my-songs/:id', async (req, res) => {
+    if (!canImport()) return fail(res, 503, 'import_unavailable')
+    const { user, tier } = await viewer(req)
+    if (!user) return fail(res, 401, 'unauthorized')
+    if (tooMany(req, res, 'songs', 120)) return
+    const song = mySongs.get(ownerOf(user), req.params.id)
+    if (!song) return fail(res, 404, 'song_not_found')
+    res.set('Cache-Control', 'no-store')
+    return res.json({ success: true, data: present(song, user, tier, true) })
+  })
+
+  app.post('/api/my-songs/:id/delete', async (req, res) => {
+    if (!canImport()) return fail(res, 503, 'import_unavailable')
+    const { user } = await viewer(req)
+    if (!user) return fail(res, 401, 'unauthorized')
+    if (tooMany(req, res, 'my-songs', 120)) return
+    if (!mySongs.remove(ownerOf(user), req.params.id)) return fail(res, 404, 'song_not_found')
+    res.set('Cache-Control', 'no-store')
+    return res.json({ success: true, data: { removed: req.params.id } })
+  })
 }
 
-module.exports = { createSongLibrary, mountSongRoutes, SONG_ID_PATTERN: ID_PATTERN }
+module.exports = { createSongLibrary, createUserSongs, mountSongRoutes, SONG_ID_PATTERN: ID_PATTERN }

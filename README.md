@@ -38,8 +38,8 @@ cd takeenglish && npm start            # http://localhost:3300
 | 等級 | 誰 | 搜尋結果 | 字幕 | 下載 | 聽歌練英打 |
 |---|---|---|---|---|---|
 | guest | 沒登入 | 前 `FREE_LIMIT` 筆 | 有 | 無 | 無(看得到歌單) |
-| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 5) | 有 | 無 | 每首前 15 句 |
-| pro | 付費會員 | 全部 | 有 | 有 | 整首不限 |
+| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 5) | 有 | 無 | 每首前 15 句;自己貼 3 支/天(自己的不切句數) |
+| pro | 付費會員 | 全部 | 有 | 有 | 整首不限;自己貼不限 |
 
 - 誰是 Pro 由 PayGate 說了算(`src/paygate.js`):每次用 email 問訂閱帳本,快取 60 秒,本站不存任何會員資料
 - PayGate 連不上:十分鐘內問過的沿用上次答案,其餘當免費會員,搜尋照常
@@ -160,7 +160,21 @@ npm test
 - 練到最後一句出結算:用時、WPM、正確率、最常打錯的字
 - ⚠️ 收鍵盤的那個 `<input>` 要鋪滿打字區(透明)。縮成 1px 的隱藏框在 Chrome 會把游標卡在位置 0,打出來整句是反的 — 見 `public/type.css` 的註解
 
-### 加一首歌
+### 會員自己貼 YouTube 連結(/type 的「我的歌」)
+
+登入會員可以貼任何 YouTube 連結,伺服器用 yt-dlp 抓英文字幕、清乾淨之後變成一首可以練的歌。
+
+- 存在 `data/songs/users/<owner>/<id>.json`,**只有加的人看得到**(owner 來自 LetMeUse 的 `sub`)
+- 自己加的歌**整首都能練,不切句數** — 牆擺在「一天能加幾支」:免費會員 3 支/天,Pro 不限(`src/plans.js` 的 `songUpload`)
+- 一個人最多 50 首;同一首再加一次會覆蓋(等於重抓字幕)
+- `yt-dlp` 一次只跑一支(同時打太多次 YouTube 會回 429,之後每支都抓不到字幕)
+- 失敗原因照實回前端:沒有英文字幕 / 不給嵌入 / 不是 YouTube 連結 / 被 YouTube 擋
+- 關掉這個功能:`SONG_IMPORT=0`。yt-dlp 不在 PATH 上用 `YTDLP_PATH` 指完整路徑
+
+兩種自動字幕都處理過(`src/song-import.js` 的 `tidy`):「先半句再整句」會併成完整的一句,
+「兩行視窗往上滾」(這一句的尾巴又出現在下一句開頭)會把重疊的部分剪掉 — 不然同一段歌詞要打兩三次。
+
+### 加一首歌到公開歌庫
 
 ```
 node scripts/import-song.js <YouTube 連結或代號> [--level 中級] [--zh auto]

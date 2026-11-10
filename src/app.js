@@ -14,7 +14,8 @@ const { createAnnotator } = require('./annotator')
 const { createTranscriptLibrary } = require('./transcripts')
 const { createDictionary } = require('./dictionary')
 const { createLessonSource, mountLessonRoutes } = require('./lessons')
-const { createSongLibrary, mountSongRoutes } = require('./songs')
+const { createSongLibrary, createUserSongs, mountSongRoutes } = require('./songs')
+const { createYtDlp, importFromYouTube } = require('./song-import')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
@@ -77,6 +78,11 @@ function createApp({
   lessons = createLessonSource(),
   transcripts = createTranscriptLibrary({ dir: path.join(__dirname, '..', 'data', 'transcripts') }),
   songs = createSongLibrary({ dir: path.join(__dirname, '..', 'data', 'songs') }),
+  mySongs = createUserSongs({ dir: path.join(__dirname, '..', 'data', 'songs', 'users') }),
+  // 會員貼連結加歌:要有 yt-dlp 才開放(SONG_IMPORT=0 可以關掉)
+  songImporter = process.env.SONG_IMPORT === '0'
+    ? null
+    : ((ytdlp) => (url) => importFromYouTube(url, { ytdlp }))(createYtDlp()),
   letmeuse = {}
 }) {
   if (!tokens) throw new Error('createApp needs media tokens')
@@ -196,6 +202,8 @@ function createApp({
         lessons: lessons.enabled,
         // 聽歌練英打有沒有歌可以練
         songs: songs.enabled,
+        // 會員能不能自己貼 YouTube 連結加歌
+        songImport: Boolean(songImporter && mySongs.enabled),
         billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
       }
     })
@@ -217,7 +225,17 @@ function createApp({
   })
   mountDictionaryRoute(app, { dictionary, limiter, clientIp })
   mountLessonRoutes(app, { source: lessons, viewer, plans, limiter, clientIp })
-  mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp })
+  mountSongRoutes(app, {
+    songs,
+    viewer,
+    plans,
+    limiter,
+    clientIp,
+    mySongs,
+    importer: songImporter,
+    // 「一天能加幾支」跟逐句解析共用同一套每日計數
+    usage: createDailyUsage()
+  })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })

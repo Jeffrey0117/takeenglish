@@ -108,3 +108,24 @@
   .type-side { position: static; }
   .type-lyrics { max-height: 320px; }
 }
+
+/* 我的歌:卡片右上角一個移除 */
+.mine-card { position: relative; }
+.mine-remove {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.mine-card:hover .mine-remove,
+.mine-remove:focus { opacity: 1; }
+.mine-remove:hover { color: #ff6b6b; border-color: #ff6b6b; }
+.lesson-mine .lesson-add-note { color: var(--muted); font-size: 12px; font-weight: 700; }

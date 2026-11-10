@@ -6,7 +6,7 @@ const path = require('node:path')
 const { createApp } = require('../src/app')
 const { createAuth } = require('../src/auth')
 const { createJwksCache } = require('../src/jwks')
-const { createSongLibrary } = require('../src/songs')
+const { createSongLibrary, createUserSongs } = require('../src/songs')
 const { createPaygate } = require('../src/paygate')
 const { createTestKeys, makeEs256Token, fakeJwksFetch, futureExp, TEST_TOKENS } = require('./helpers')
 
@@ -49,18 +49,52 @@ function fakePaygate() {
   })
 }
 
-function startApp(dir) {
+function startApp(dir, { importer, mineDir } = {}) {
   const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
   const app = createApp({
     clipcafe: { search: async () => ({ total: 0, results: [] }) },
     auth: createAuth({ appId: APP_ID, secret: 's', jwks: createJwksCache({ url: 'https://jwks.test', fetchImpl }) }),
     tokens: TEST_TOKENS,
     paygate: fakePaygate(),
-    songs: createSongLibrary({ dir, onError: () => {} })
+    songs: createSongLibrary({ dir, onError: () => {} }),
+    ...(mineDir ? { mySongs: createUserSongs({ dir: mineDir }) } : {}),
+    // 一律明寫:預設值是真的會去跑 yt-dlp 的那一個,測試裡絕對不要拿到它
+    songImporter: importer || null
   })
   const server = app.listen(0)
   const base = `http://127.0.0.1:${server.address().port}`
   return { server, base }
+}
+
+const postJson = async (base, path, headers = {}, body = {}) => {
+  const res = await fetch(base + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body)
+  })
+  const parsed = await res.json().catch(() => ({}))
+  return { status: res.status, body: parsed, data: parsed.data }
+}
+
+// 假的匯入器:不跑 yt-dlp,直接回一首歌
+function fakeImporter({ fail = null, lines = LINES } = {}) {
+  const calls = []
+  return async (url) => {
+    calls.push(url)
+    if (fail) throw Object.assign(new Error(fail), { code: fail })
+    const slug = `added-${calls.length}`
+    return { id: slug, title: `Added ${calls.length}`, artist: 'Someone', youtubeId: 'UprcpdwuwCg', level: '', lines }
+  }
+}
+// 每一支給不同的代號(同代號會互相覆蓋,那是另一條規則)
+fakeImporter.withCalls = () => {
+  const calls = []
+  const fn = async (url) => {
+    calls.push(url)
+    return { id: `added-${calls.length}`, title: `Added ${calls.length}`, artist: 'Someone', youtubeId: 'UprcpdwuwCg', level: '', lines: LINES }
+  }
+  fn.calls = calls
+  return fn
 }
 
 async function get(base, path, headers = {}) {
@@ -234,6 +268,145 @@ test('沒有歌的時候 /api/config 會說 songs: false', async () => {
     const { data } = await get(base, '/api/config')
     assert.equal(data.songs, false)
     assert.equal((await get(base, '/api/songs')).data.items.length, 0)
+  } finally {
+    server.close()
+  }
+})
+
+// ---- 會員自己貼 YouTube 連結加歌 ----
+
+function startWithImport(options = {}) {
+  const mineDir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-mine-'))
+  const importer = options.importer || fakeImporter.withCalls()
+  const { server, base } = startApp(withSongs({ 'demo.json': SONG }), { importer, mineDir })
+  return { server, base, importer, mineDir }
+}
+
+test('訪客不能加歌:402,而且根本不會去跑匯入', async () => {
+  const { server, base, importer } = startWithImport()
+  try {
+    assert.equal((await postJson(base, '/api/my-songs', {}, { url: 'https://youtu.be/UprcpdwuwCg' })).status, 401)
+    assert.deepEqual(importer.calls, [])
+  } finally {
+    server.close()
+  }
+})
+
+test('免費會員加一支:存起來、可以練,而且整首不切句數', async () => {
+  const { server, base } = startWithImport()
+  try {
+    const added = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/UprcpdwuwCg' })
+    assert.equal(added.status, 200)
+    assert.equal(added.data.own, true)
+    assert.equal(added.data.lines, LINES.length)
+
+    // 公開歌庫的歌對免費會員只給 15 句,自己加的這首不切
+    const own = await get(base, `/api/my-songs/${added.data.id}`, bearer('free@example.com'))
+    assert.equal(own.data.own, true)
+    assert.equal(own.data.lines.length, LINES.length)
+    assert.equal(own.data.lockedLines, 0)
+    assert.equal(own.data.lockedFrom, null)
+
+    const list = await get(base, '/api/my-songs', bearer('free@example.com'))
+    assert.equal(list.data.items.length, 1)
+    assert.equal(list.data.limit, 3)
+    assert.equal(list.data.used, 1)
+  } finally {
+    server.close()
+  }
+})
+
+test('別人加的歌看不到也練不到', async () => {
+  const { server, base } = startWithImport()
+  try {
+    const added = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/UprcpdwuwCg' })
+    const other = await get(base, `/api/my-songs/${added.data.id}`, bearer('someone-else@example.com'))
+    assert.equal(other.status, 404)
+    assert.equal((await get(base, '/api/my-songs', bearer('someone-else@example.com'))).data.items.length, 0)
+  } finally {
+    server.close()
+  }
+})
+
+test('免費會員一天三支,第四支擋下來(而且不會白跑一次 yt-dlp)', async () => {
+  const { server, base, importer } = startWithImport()
+  try {
+    for (let i = 1; i <= 3; i += 1) {
+      const res = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: `https://youtu.be/vid${i}aaaaaaa` })
+      assert.equal(res.status, 200, `第 ${i} 支應該過`)
+    }
+    const fourth = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/vid4aaaaaaa' })
+    assert.equal(fourth.status, 429)
+    assert.equal(fourth.body.error, 'daily_limit')
+    assert.equal(importer.calls.length, 3)
+  } finally {
+    server.close()
+  }
+})
+
+test('Pro 不限支數', async () => {
+  const { server, base } = startWithImport()
+  try {
+    for (let i = 1; i <= 5; i += 1) {
+      const res = await postJson(base, '/api/my-songs', bearer(PRO_EMAIL), { url: `https://youtu.be/pro${i}aaaaaaa` })
+      assert.equal(res.status, 200)
+    }
+    const list = await get(base, '/api/my-songs', bearer(PRO_EMAIL))
+    assert.equal(list.data.limit, null)
+    assert.equal(list.data.items.length, 5)
+  } finally {
+    server.close()
+  }
+})
+
+test('匯入失敗的原因照實回給前端,額度不扣', async () => {
+  const cases = [
+    ['no_subtitles', 400],
+    ['not_embeddable', 400],
+    ['bad_url', 400],
+    ['rate_limited', 503]
+  ]
+  for (const [code, status] of cases) {
+    const { server, base } = startWithImport({ importer: fakeImporter({ fail: code }) })
+    try {
+      const res = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/UprcpdwuwCg' })
+      assert.equal(res.status, status, code)
+      assert.equal(res.body.error, code)
+      assert.equal((await get(base, '/api/my-songs', bearer('free@example.com'))).data.used, 0)
+    } finally {
+      server.close()
+    }
+  }
+})
+
+test('移除之後就不在清單裡,也練不到', async () => {
+  const { server, base } = startWithImport()
+  try {
+    const added = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/UprcpdwuwCg' })
+    const removed = await postJson(base, `/api/my-songs/${added.data.id}/delete`, bearer('free@example.com'))
+    assert.equal(removed.status, 200)
+    assert.equal((await get(base, '/api/my-songs', bearer('free@example.com'))).data.items.length, 0)
+    assert.equal((await get(base, `/api/my-songs/${added.data.id}`, bearer('free@example.com'))).status, 404)
+  } finally {
+    server.close()
+  }
+})
+
+test('代號亂寫的不會跑去讀別的檔案', async () => {
+  const { server, base } = startWithImport()
+  try {
+    assert.equal((await get(base, '/api/my-songs/..%2F..%2Fpackage.json', bearer('free@example.com'))).status, 404)
+    assert.equal((await postJson(base, '/api/my-songs/..%2F..%2Fpackage.json/delete', bearer('free@example.com'))).status, 404)
+  } finally {
+    server.close()
+  }
+})
+
+test('沒設匯入器的話這幾支是 503,不是 500', async () => {
+  const { server, base } = startApp(withSongs({ 'demo.json': SONG }))
+  try {
+    assert.equal((await get(base, '/api/my-songs', bearer('free@example.com'))).status, 503)
+    assert.equal((await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/x' })).status, 503)
   } finally {
     server.close()
   }

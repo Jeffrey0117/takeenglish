@@ -16,6 +16,7 @@ function toQuota(limit) {
 // 數字型的功能是額度:study = 每天可以逐句解析幾支片段,studyEpisodes = 看劇區前幾集開放解析。
 // lessonLines = 影片學習的逐字稿露出幾句;lessonModes = 學習模式(單句重複、慢速、聽寫、重點整理)
 // typing = 聽歌練英打進不進得去(會員專屬,訪客沒有);typingLines = 一首歌開放練幾句
+// songUpload = 自己貼 YouTube 連結,一天可以加幾支(自己加的歌不切句數)
 function createPlans({
   guestLimit = 3,
   memberLimit = 0,
@@ -23,7 +24,8 @@ function createPlans({
   freeEpisodes = 3,
   guestLessonLines = 5,
   memberLessonLines = 10,
-  memberTypingLines = 15
+  memberTypingLines = 15,
+  memberSongUploads = 3
 } = {}) {
   const paywall = createPaywall({
     tiers: [
@@ -33,7 +35,7 @@ function createPlans({
         price: 0,
         // 訪客不是可以「選」的方案:功能閘門照用,但方案頁不畫(見 paywall-kit SKILL.md 方案頁鐵則)
         listed: false,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false, typing: false, typingLines: 0 }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false, typing: false, typingLines: 0, songUpload: 0 }
       },
       {
         id: 'free',
@@ -52,14 +54,15 @@ function createPlans({
           typing: true,
           // ⚠️ 不要套 toQuota:那是給「0 = 不擋」的搜尋筆數用的。
           // 這裡 0 要是「一句都不給」,套下去會變成免費會員整首歌全拿
-          typingLines: memberTypingLines
+          typingLines: memberTypingLines,
+          songUpload: memberSongUploads
         }
       },
       {
         id: 'pro',
         name: 'Pro',
         price: 0,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, songUpload: UNLIMITED }
       }
     ]
   })
@@ -86,7 +89,8 @@ function createPlans({
         study: quota(tier.id, 'study'),
         studyEpisodes: quota(tier.id, 'studyEpisodes'),
         lessonLines: quota(tier.id, 'lessonLines'),
-        typingLines: quota(tier.id, 'typingLines')
+        typingLines: quota(tier.id, 'typingLines'),
+        songUpload: quota(tier.id, 'songUpload')
       }
     }))
   }

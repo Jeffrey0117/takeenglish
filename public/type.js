@@ -46,6 +46,29 @@ const TEXT = {
   wallTitle: '練完整首歌',
   wallPoints: ['每首歌從頭打到尾', '影片學習完整逐字稿', '單句重複、慢速、聽寫不受限', '片語搜尋看全部結果'],
   wallGuestHint: '先免費登入,可以先練 15 句',
+  // 自己貼 YouTube 連結
+  mine: '我的歌',
+  mineHint: '貼上 YouTube 連結,自動抓字幕變成練習;自己加的歌整首都能練。',
+  minePlaceholder: 'https://www.youtube.com/watch?v=…',
+  mineAdd: '加入',
+  mineAdding: '抓字幕中…(可能要十幾秒)',
+  mineEmpty: '還沒有自己加的歌',
+  mineLogin: '登入後可以貼自己的 YouTube 連結',
+  mineQuota: (used, limit) => (limit === null ? '不限' : `今天還可以加 ${Math.max(limit - used, 0)} 支`),
+  mineRemove: '移除',
+  mineRemoveConfirm: (title) => `把「${title}」從我的歌移除?`,
+  mineErrors: {
+    bad_url: '這不是 YouTube 影片連結',
+    not_embeddable: '這支影片不給嵌入播放,練不了 — 換一支',
+    no_subtitles: '這支影片沒有英文字幕,抓不到歌詞',
+    rate_limited: 'YouTube 暫時擋下請求,過幾分鐘再試',
+    daily_limit: '今天加的額度用完了',
+    library_full: '我的歌放滿了,先移除幾首',
+    upgrade_required: '這是會員功能',
+    unauthorized: '請先登入',
+    import_unavailable: '這台伺服器沒有開放自己加歌',
+    default: '加入失敗,稍後再試'
+  },
   minutes: (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 }
 // YouTube 只認得這幾個速度,給它 0.9 會被吸到最近的一個 — 按鈕寫 0.9x 但其實是 1x
@@ -93,7 +116,7 @@ const THUMB = /^https:[/][/]i[.]ytimg[.]com[/]vi[/][A-Za-z0-9_-]{11}[/][a-z0-9]+
 
 function songCard(item) {
   const card = el('a', 'lesson-card')
-  card.href = `/type?id=${encodeURIComponent(item.id)}`
+  card.href = item.own ? `/type?mine=${encodeURIComponent(item.id)}` : `/type?id=${encodeURIComponent(item.id)}`
   const cover = el('div', 'lesson-cover')
   if (THUMB.test(item.thumb || '')) cover.style.backgroundImage = `url("${item.thumb}")`
   if (item.level) cover.append(el('span', 'song-level', item.level))
@@ -113,6 +136,7 @@ async function renderList() {
   const hero = el('div', 'type-hero')
   hero.append(el('h1', 'watch-title', TEXT.heading), el('span', 'type-badge', TEXT.badge))
   main.replaceChildren(hero, el('p', 'lesson-sub', TEXT.sub))
+  if ((window.teSession.config() || {}).songImport) main.append(await mineSection())
   if (res.data.items.length === 0) {
     main.append(el('p', 'watch-status', TEXT.empty))
     return
@@ -120,6 +144,91 @@ async function renderList() {
   const grid = el('div', 'lesson-grid')
   for (const item of res.data.items) grid.append(songCard(item))
   main.append(grid)
+}
+
+// 我的歌:貼連結加一支。抓字幕要跑 yt-dlp,十幾秒跑不掉,所以按鈕會一直停在「抓字幕中」
+async function mineSection() {
+  const box = el('section', 'lesson-mine')
+  box.append(el('h2', 'row-title', TEXT.mine), el('p', 'lesson-sub mine-hint', TEXT.mineHint))
+  const form = el('form', 'lesson-add')
+  const input = el('input', 'lesson-add-input')
+  input.type = 'url'
+  input.placeholder = TEXT.minePlaceholder
+  input.required = true
+  const submit = el('button', 'auth-btn', TEXT.mineAdd)
+  submit.type = 'submit'
+  const note = el('p', 'study-note lesson-add-note', '')
+  form.append(input, submit)
+  const grid = el('div', 'lesson-grid')
+  box.append(form, note, grid)
+
+  const signedIn = Boolean(window.teSession.user())
+  if (!signedIn) {
+    note.textContent = TEXT.mineLogin
+    form.onsubmit = (event) => {
+      event.preventDefault()
+      window.teSession.login()
+    }
+    return box
+  }
+
+  async function refresh() {
+    const res = await getJson('/api/my-songs')
+    if (!res.ok) return
+    note.textContent = TEXT.mineQuota(res.data.used, res.data.limit)
+    grid.replaceChildren()
+    for (const item of res.data.items) grid.append(mineCard(item, refresh))
+    if (res.data.items.length === 0) grid.append(el('p', 'watch-status mine-empty', TEXT.mineEmpty))
+  }
+
+  form.onsubmit = async (event) => {
+    event.preventDefault()
+    submit.disabled = true
+    note.textContent = TEXT.mineAdding
+    try {
+      const token = window.teSession.getToken()
+      const res = await fetch('/api/my-songs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ url: input.value.trim() })
+      })
+      const body = await res.json().catch(() => ({}))
+      if (res.ok && body.success) {
+        input.value = ''
+        await refresh()
+        // 加好了就直接進去練,不用自己再點一次
+        location.href = `/type?mine=${encodeURIComponent(body.data.id)}`
+        return
+      }
+      note.textContent = TEXT.mineErrors[body.error] || TEXT.mineErrors.default
+    } catch {
+      note.textContent = TEXT.mineErrors.default
+    } finally {
+      submit.disabled = false
+    }
+  }
+
+  await refresh()
+  return box
+}
+
+// 自己加的歌的卡片:多一個移除
+function mineCard(item, onRemoved) {
+  const wrap = el('div', 'mine-card')
+  wrap.append(songCard(item))
+  const remove = el('button', 'mine-remove', TEXT.mineRemove)
+  remove.type = 'button'
+  remove.onclick = async () => {
+    if (!confirm(TEXT.mineRemoveConfirm(item.title))) return
+    const token = window.teSession.getToken()
+    await fetch(`/api/my-songs/${encodeURIComponent(item.id)}/delete`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    }).catch(() => {})
+    await onRemoved()
+  }
+  wrap.append(remove)
+  return wrap
 }
 
 // ---- YouTube 播放器 ----
@@ -188,8 +297,9 @@ function createStats(score, total) {
 
 // ---- 一首歌的練習畫面 ----
 
-async function renderSong(id) {
-  const res = await getJson(`/api/songs/${encodeURIComponent(id)}`)
+async function renderSong(id, { mine = false } = {}) {
+  const path = mine ? `/api/my-songs/${encodeURIComponent(id)}` : `/api/songs/${encodeURIComponent(id)}`
+  const res = await getJson(path)
   const main = $('#type-main')
   if (!res.ok) {
     status(res.status === 404 ? TEXT.notFound : TEXT.error)
@@ -654,7 +764,9 @@ function watchSignIn() {
 async function init() {
   try {
     const id = params.get('id')
-    if (id) await renderSong(id)
+    const mine = params.get('mine')
+    if (mine) await renderSong(mine, { mine: true })
+    else if (id) await renderSong(id)
     else await renderList()
   } catch {
     status(TEXT.error)
