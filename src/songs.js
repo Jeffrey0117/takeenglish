@@ -284,7 +284,7 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     try {
       song = await importer(url)
     } catch (err) {
-      const known = ['bad_url', 'not_embeddable', 'no_subtitles', 'subs_fetch_failed', 'rate_limited', 'no_title']
+      const known = ['bad_url', 'not_embeddable', 'no_subtitles', 'thin_subtitles', 'subs_fetch_failed', 'rate_limited', 'no_title']
       if (known.includes(err.code)) {
         res.set('Cache-Control', 'no-store')
         // 被擋/抓失敗是我們這邊的問題,不是使用者貼錯 → 503,而且把還要等多久帶回去

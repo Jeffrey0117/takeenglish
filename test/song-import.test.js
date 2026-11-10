@@ -13,7 +13,9 @@ const {
   buildSong,
   importFromYouTube,
   looksLikeProse,
-  reflow
+  reflow,
+  tooThin,
+  subtitleDensity
 } = require('../src/song-import')
 
 test('各種 YouTube 網址都認得出代號,不是 YouTube 的回空字串', () => {
@@ -128,10 +130,14 @@ test('中文字幕按時間重疊對回英文句', () => {
 // 假的 yt-dlp:不會真的打 YouTube
 function fakeYtDlp({ title = 'twenty one pilots: Heathens [OFFICIAL VIDEO]', channel = 'Fueled By Ramen', embeddable = true, en = 'ok', hasEnglish = null, zh = null } = {}) {
   const calls = []
+  // 要夠像一首真的歌:太少句或太稀疏會被 tooThin 擋下來(那是刻意的)
   const CUES = [
     { start: 20.8, end: 25.4, text: '♪ All my friends are heathens, take it slow ♪' },
     { start: 25.4, end: 26.4, text: '(gentle music)' },
-    { start: 26.4, end: 31.3, text: '♪ Wait for them to ask you who you know ♪' }
+    { start: 26.4, end: 31.3, text: '♪ Wait for them to ask you who you know ♪' },
+    { start: 31.3, end: 36.3, text: '♪ Please don’t make any sudden moves ♪' },
+    { start: 36.7, end: 41.7, text: '♪ You don’t know the half of the abuse ♪' },
+    { start: 42.5, end: 47.5, text: '♪ Welcome to the room of people ♪' }
   ]
   const meta = () => ({ title, channel, embeddable, hasEnglish: hasEnglish === null ? en !== 'none' : hasEnglish })
   return {
@@ -158,10 +164,13 @@ test('匯入一支:代號、歌名、歌手、乾淨的歌詞', async () => {
   assert.equal(song.title, 'Heathens')
   assert.equal(song.artist, 'twenty one pilots') // 不是頻道名(唱片公司)
   assert.equal(song.youtubeId, 'UprcpdwuwCg')
-  assert.deepEqual(
-    song.lines.map((l) => l.text),
-    ['All my friends are heathens, take it slow', 'Wait for them to ask you who you know']
-  )
+  assert.deepEqual(song.lines.map((l) => l.text), [
+    'All my friends are heathens, take it slow',
+    'Wait for them to ask you who you know',
+    'Please don’t make any sudden moves',
+    'You don’t know the half of the abuse',
+    'Welcome to the room of people'
+  ])
 })
 
 test('不能嵌入的影片擋下來(在站上根本播不了)', async () => {
@@ -373,4 +382,44 @@ test('--print 一定要配 --no-simulate,不然 yt-dlp 只印不寫檔,字幕永
     assert.ok(seen.includes('--no-simulate'), '少了 --no-simulate 就抓不到任何字幕')
     assert.ok(seen.includes('--skip-download'), '只要字幕,不要影片')
   })
+})
+
+// ---- 有字幕軌 ≠ 能練 ----
+
+// 非英文歌常常也有一條 en 自動字幕軌,但裡面只是 YouTube 從韓文歌裡「聽」出來的
+// 幾個零星英文字。使用者實際遇到的那首:四句話撐兩分鐘,內容是 "um"、"again"
+const JUNK = [
+  { start: 13.9, end: 43.8, text: 'why are you trying to be' },
+  { start: 43.8, end: 64.2, text: 'i can take me' },
+  { start: 98.8, end: 103.2, text: 'um' },
+  { start: 113.4, end: 119.5, text: 'again' }
+]
+
+test('字幕太稀疏的擋下來,不要讓人拿到一首練不了的歌', () => {
+  assert.equal(tooThin(JUNK), true)
+  assert.ok(subtitleDensity(JUNK) < 1, `密度應該很低,實際 ${subtitleDensity(JUNK)}`)
+  assert.throws(
+    () =>
+      buildSong({
+        videoId: 'TYGu-DnX8kg',
+        meta: { title: 'CAMO - Wifey', channel: 'CAMO', embeddable: true },
+        cues: JUNK
+      }),
+    (err) => err.code === 'thin_subtitles'
+  )
+})
+
+test('真的英文歌不會被這道門檻誤殺', () => {
+  const real = [
+    { start: 20.8, end: 25.4, text: 'All my friends are heathens, take it slow' },
+    { start: 25.4, end: 30.1, text: 'Wait for them to ask you who you know' },
+    { start: 30.1, end: 35.0, text: 'Please don’t make any sudden moves' },
+    { start: 35.0, end: 40.2, text: 'You don’t know the half of the abuse' }
+  ]
+  assert.equal(tooThin(real), false)
+  assert.ok(subtitleDensity(real) > 5)
+})
+
+test('句數太少也擋(兩三句撐不起一首歌)', () => {
+  assert.equal(tooThin([{ start: 0, end: 2, text: 'Take it slow' }]), true)
 })

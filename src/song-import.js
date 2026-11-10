@@ -357,6 +357,26 @@ function createYtDlp({
   }
 }
 
+// 字幕有了不代表能用。非英文歌常常也有一條 `en` 自動字幕軌,但裡面只是
+// YouTube 從一首韓文歌裡「聽」出來的幾個零星英文字 —— 四句話撐兩分鐘,
+// 內容是 "um"、"again"。照樣匯進來的話,使用者拿到的是一首練不了的歌。
+//
+// 用「每秒幾個字元」分辨:真的英文歌是 5.8～10.8(實測四首),
+// 上面那種垃圾軌是 0.42。抓 1.5 當門檻,離兩邊都夠遠。
+const MIN_LINES = 4
+const MIN_CHARS_PER_SECOND = 1.5
+
+function subtitleDensity(lines) {
+  const chars = lines.reduce((sum, line) => sum + line.text.length, 0)
+  const span = lines[lines.length - 1].end - lines[0].start
+  return span > 0 ? chars / span : 0
+}
+
+function tooThin(lines) {
+  if (lines.length < MIN_LINES) return true
+  return subtitleDensity(lines) < MIN_CHARS_PER_SECOND
+}
+
 // 原始字幕 → 可以存檔的一首歌。丟出來的錯誤都帶 code,呼叫端好翻成人看得懂的話。
 function buildSong({ videoId, meta = {}, cues, zhCues = [], id: wantedId = '', title: wantedTitle = '', artist: wantedArtist = '', level = '' }) {
   if (!YOUTUBE_ID_PATTERN.test(videoId)) throw importError('bad_url', '這不是 YouTube 影片連結')
@@ -367,6 +387,10 @@ function buildSong({ videoId, meta = {}, cues, zhCues = [], id: wantedId = '', t
   const artist = wantedArtist || parsed.artist || (meta.channel || '').trim()
   const lines = attachTranslations(deCaps(reflow(tidy(cues || []))), tidy(zhCues || []))
   if (lines.length === 0) throw importError('no_subtitles', '這支影片沒有可以用的英文字幕')
+  // 有字幕軌但內容撐不起一首歌 —— 多半是非英文歌被硬辨識出幾個字
+  if (tooThin(lines)) {
+    throw importError('thin_subtitles', `英文字幕太稀疏(只有  句)— 這首多半不是英文歌`)
+  }
   return {
     id: slugify(wantedId || title, `yt-${videoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`),
     title,
@@ -406,6 +430,8 @@ module.exports = {
   lyricText,
   tidy,
   deCaps,
+  tooThin,
+  subtitleDensity,
   slugify,
   parseLrc,
   parseLyrics,

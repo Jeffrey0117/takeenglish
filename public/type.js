@@ -65,6 +65,7 @@ const TEXT = {
     bad_url: '這不是 YouTube 影片連結',
     not_embeddable: '這支影片不給嵌入播放,練不了 — 換一支',
     no_subtitles: '這支影片沒有英文字幕(很多官方 MV 都沒有)— 找同一首歌的 lyrics 影片通常有',
+    thin_subtitles: '這首的英文字幕太零散,練不了 — YouTube 只從非英文歌裡聽出幾個字。換英文歌試試',
     subs_fetch_failed: '這支有字幕,但這次沒抓到 — 等一下再按一次就好,不用換影片',
     rate_limited: 'YouTube 暫時擋下請求,過幾分鐘再試',
     daily_limit: '今天加的額度用完了',
