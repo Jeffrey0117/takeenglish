@@ -361,3 +361,40 @@ test('download: 代號不對 404 — 不能拿 slug 或播放網址來換下載'
     server.close()
   }
 })
+
+// 站主自己:LetMeUse 的 role=admin 一律全開,不必在訂閱帳本裡放一筆沒收錢的紀錄
+test('admin 直接是 Pro,而且根本不會去問 PayGate', async () => {
+  const { server, base, paygate } = await startApp({ subscribers: {} })
+  try {
+    const adminToken = makeEs256Token(
+      { sub: 'usr_admin', email: 'owner@example.com', name: 'Owner', role: 'admin', app: APP_ID, exp: futureExp() },
+      KEYS
+    )
+    const res = await fetch(`${base}/api/me`, { headers: { Authorization: `Bearer ${adminToken}` } })
+    const body = await res.json()
+    assert.equal(res.status, 200)
+    assert.equal(body.data.tier, 'pro')
+    assert.equal(
+      paygate.state.calls.some((call) => call.path === '/api/subscription/check'),
+      false,
+      'admin 不該去查訂閱'
+    )
+  } finally {
+    server.close()
+  }
+})
+
+test('role 不是 admin 的照常問 PayGate(不能自稱 admin 就全開以外的路徑被繞過)', async () => {
+  const { server, base, paygate } = await startApp({ subscribers: {} })
+  try {
+    const token = makeEs256Token(
+      { sub: 'usr_x', email: 'user@example.com', role: 'user', app: APP_ID, exp: futureExp() },
+      KEYS
+    )
+    const res = await fetch(`${base}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
+    assert.equal((await res.json()).data.tier, 'free')
+    assert.ok(paygate.state.calls.some((call) => call.path === '/api/subscription/check'))
+  } finally {
+    server.close()
+  }
+})

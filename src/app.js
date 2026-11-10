@@ -156,6 +156,10 @@ function createApp({
   async function viewer(req, { fresh = false } = {}) {
     const user = await currentUser(req)
     if (!user) return { user: null, tier: 'guest', activeUntil: null }
+    // 站主自己:LetMeUse 的 role=admin 一律全開,不去問 PayGate。
+    // 不然為了讓自己能用,就得在訂閱帳本裡塞一筆沒收到錢的紀錄,營收數字就髒了。
+    // role 來自這個 app 自己的 ES256 簽章 token,跟 sub/email 一樣可信。
+    if (user.role === 'admin') return { user, tier: 'pro', activeUntil: null, admin: true }
     const { tier, activeUntil } = await paygate.tierFor(user.email, { fresh })
     return { user, tier, activeUntil }
   }

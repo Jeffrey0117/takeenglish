@@ -103,6 +103,62 @@ function tidy(cues) {
     .filter((cue) => cue.end > cue.start)
 }
 
+// 自動字幕的斷點是「顯示用的兩行視窗」,跟句子無關 —— 一行常常是
+// 「…take my hand. Well, me I fall in love with you」:前半是上一句的尾巴,
+// 後半是下一句的開頭。照這樣練,每一行都是半截話。
+//
+// 但不是每首歌都要重切:正常的歌詞字幕一行就是一句歌詞(Heathens 那種),
+// 重切反而會把它們黏成一大段。差別很明顯 —— 散文式的自動字幕會有大量
+// 「句號出現在行中間」,歌詞字幕幾乎沒有標點。實測 Thinking Out Loud 是
+// 33/49 行,Heathens 是 0/41。
+const MID_SENTENCE = /[.!?]["')\]]*\s+\S/
+const PROSE_RATIO = 0.25
+const MAX_LINE_CHARS = 90
+
+function looksLikeProse(lines) {
+  if (lines.length < 4) return false
+  const broken = lines.filter((line) => MID_SENTENCE.test(line.text)).length
+  return broken / lines.length >= PROSE_RATIO
+}
+
+// 每個字配一段時間(一行的長度平均分給裡面的字),這樣重切之後還對得上影片
+function wordStream(lines) {
+  const words = []
+  for (const line of lines) {
+    const parts = line.text.split(/\s+/).filter(Boolean)
+    if (parts.length === 0) continue
+    const span = (line.end - line.start) / parts.length
+    parts.forEach((word, i) => words.push({ word, start: line.start + i * span, end: line.start + (i + 1) * span }))
+  }
+  return words
+}
+
+// 照句尾標點重新分行;一直沒有標點就在長度上限處斷開
+function regroup(words) {
+  const lines = []
+  let buffer = []
+  const flush = () => {
+    if (buffer.length === 0) return
+    lines.push({
+      start: buffer[0].start,
+      end: buffer[buffer.length - 1].end,
+      text: buffer.map((w) => w.word).join(' ')
+    })
+    buffer = []
+  }
+  for (const word of words) {
+    buffer.push(word)
+    const length = buffer.reduce((sum, w) => sum + w.word.length + 1, -1)
+    if (/[.!?]["')\]]*$/.test(word.word) || length >= MAX_LINE_CHARS) flush()
+  }
+  flush()
+  return lines
+}
+
+function reflow(lines) {
+  return looksLikeProse(lines) ? regroup(wordStream(lines)) : lines
+}
+
 // 有些 MV 的字幕整首都是大寫(Believer 就是)。照著打要一直按 Shift,
 // 練的是小指不是英文 — 超過七成是大寫就整首轉成正常大小寫。
 function deCaps(lines) {
@@ -241,7 +297,7 @@ function buildSong({ videoId, meta = {}, cues, zhCues = [], id: wantedId = '', t
   const title = wantedTitle || parsed.title
   if (!title) throw importError('no_title', '拿不到影片標題')
   const artist = wantedArtist || parsed.artist || (meta.channel || '').trim()
-  const lines = attachTranslations(deCaps(tidy(cues || [])), tidy(zhCues || []))
+  const lines = attachTranslations(deCaps(reflow(tidy(cues || []))), tidy(zhCues || []))
   if (lines.length === 0) throw importError('no_subtitles', '這支影片沒有可以用的英文字幕')
   return {
     id: slugify(wantedId || title, `yt-${videoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`),
@@ -272,6 +328,8 @@ module.exports = {
   videoIdOf,
   cleanTitle,
   splitArtist,
+  looksLikeProse,
+  reflow,
   lyricText,
   tidy,
   deCaps,

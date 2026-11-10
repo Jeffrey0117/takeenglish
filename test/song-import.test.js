@@ -11,7 +11,9 @@ const {
   attachTranslations,
   createYtDlp,
   buildSong,
-  importFromYouTube
+  importFromYouTube,
+  looksLikeProse,
+  reflow
 } = require('../src/song-import')
 
 test('各種 YouTube 網址都認得出代號,不是 YouTube 的回空字串', () => {
@@ -240,4 +242,60 @@ test('前一支失敗不會卡住後面排隊的', async () => {
   await assert.rejects(() => ytdlp.meta('UprcpdwuwCg'))
   const meta = await ytdlp.meta('UprcpdwuwCg')
   assert.equal(meta.title, 'T')
+})
+
+// ---- 斷句:自動字幕的斷點跟句子無關 ----
+
+const PROSE = [
+  { start: 0, end: 5, text: 'When your legs don’t work like they used to' },
+  { start: 5, end: 10, text: 'before and I can’t sweep you off of your' },
+  { start: 10, end: 15, text: 'feet. Will your mouth still remember the taste of my love?' },
+  { start: 15, end: 20, text: 'Will your eyes still smile from your cheeks?' }
+]
+
+const LYRICS = [
+  { start: 0, end: 4, text: 'All my friends are heathens, take it slow' },
+  { start: 4, end: 8, text: 'Wait for them to ask you who you know' },
+  { start: 8, end: 12, text: 'Please don’t make any sudden moves' },
+  { start: 12, end: 16, text: 'You don’t know the half of the abuse' }
+]
+
+test('散文式的自動字幕認得出來,歌詞式的不會被誤判', () => {
+  assert.equal(looksLikeProse(PROSE), true)
+  assert.equal(looksLikeProse(LYRICS), false)
+  assert.equal(looksLikeProse(PROSE.slice(0, 2)), false) // 行數太少不判斷
+})
+
+test('照句子重切:每一行都是完整的一句,不是半截話', () => {
+  const lines = reflow(PROSE)
+  assert.deepEqual(
+    lines.map((l) => l.text),
+    [
+      'When your legs don’t work like they used to before and I can’t sweep you off of your feet.',
+      'Will your mouth still remember the taste of my love?',
+      'Will your eyes still smile from your cheeks?'
+    ]
+  )
+})
+
+test('重切之後時間還對得上影片', () => {
+  const lines = reflow(PROSE)
+  assert.equal(lines[0].start, 0) // 第一句從頭開始
+  assert.ok(lines[lines.length - 1].end <= 20) // 不會超出原本的範圍
+  for (let i = 1; i < lines.length; i += 1) {
+    assert.ok(lines[i].start >= lines[i - 1].start, '時間要遞增')
+    assert.ok(lines[i].end > lines[i].start)
+  }
+})
+
+test('歌詞式的字幕不要動它 —— 重切會把一句一行黏成一大段', () => {
+  assert.deepEqual(reflow(LYRICS), LYRICS)
+})
+
+test('一直沒有標點的長句會在長度上限斷開,不會變成一行三百字', () => {
+  // 開頭放一長串沒有標點的 "na na na…"(副歌常有),後面接原本那段散文式字幕
+  const runOn = { start: 0, end: 30, text: `${'na '.repeat(80).trim()}. Done` }
+  const lines = reflow([runOn, ...PROSE])
+  assert.ok(lines.length > 3, '那一長串要被切成好幾行')
+  for (const line of lines) assert.ok(line.text.length <= 95, `這行太長:${line.text.length}`)
 })
