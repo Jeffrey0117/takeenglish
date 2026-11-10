@@ -137,6 +137,9 @@ async function renderList() {
   hero.append(el('h1', 'watch-title', TEXT.heading), el('span', 'type-badge', TEXT.badge))
   main.replaceChildren(hero, el('p', 'lesson-sub', TEXT.sub))
   if ((window.teSession.config() || {}).songImport) main.append(await mineSection())
+  // 登入/登出之後「我的歌」整區的內容就不一樣了,重新載入最乾淨。
+  // 要擺在歌單是不是空的判斷之前 — 不然歌庫空的時候登入了畫面也不會變
+  watchSignIn()
   if (res.data.items.length === 0) {
     main.append(el('p', 'watch-status', TEXT.empty))
     return
@@ -144,6 +147,28 @@ async function renderList() {
   const grid = el('div', 'lesson-grid')
   for (const item of res.data.items) grid.append(songCard(item))
   main.append(grid)
+}
+
+// 登入會重新載入頁面,打到一半的網址只好先寄放在瀏覽器。
+// 無痕視窗或擋了 storage 的時候會丟例外,接住就好 — 大不了重貼一次
+const STASH_KEY = 'te-type-pending-url'
+const stash = {
+  keep(url) {
+    try {
+      if (url) sessionStorage.setItem(STASH_KEY, url)
+    } catch {
+      /* 沒得存就算了 */
+    }
+  },
+  take() {
+    try {
+      const url = sessionStorage.getItem(STASH_KEY) || ''
+      sessionStorage.removeItem(STASH_KEY)
+      return url
+    } catch {
+      return ''
+    }
+  }
 }
 
 // 我的歌:貼連結加一支。抓字幕要跑 yt-dlp,十幾秒跑不掉,所以按鈕會一直停在「抓字幕中」
@@ -162,11 +187,15 @@ async function mineSection() {
   const grid = el('div', 'lesson-grid')
   box.append(form, note, grid)
 
+  // 被叫去登入之前先把打好的網址記起來:登入完頁面會重新載入,不能讓他再貼一次
+  input.value = stash.take()
+
   const signedIn = Boolean(window.teSession.user())
   if (!signedIn) {
     note.textContent = TEXT.mineLogin
     form.onsubmit = (event) => {
       event.preventDefault()
+      stash.keep(input.value.trim())
       window.teSession.login()
     }
     return box
