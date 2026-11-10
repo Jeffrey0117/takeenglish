@@ -269,8 +269,9 @@ async function renderList() {
   for (const item of res.data.items) grid.append(songCard(item, mine.bests[item.id] || null))
   main.append(grid)
   if (mine.node) main.append(mine.node)
-  // 廣告擺最底下,而且付費會員不畫
-  window.teAds.render(main, mine.tier)
+  // 廣告擺最底下,而且付費會員不畫。script 沒載到就當沒有廣告 ——
+  // 不能讓一個廣告位把整個歌單的 render 打掛
+  if (window.teAds) window.teAds.render(main, mine.tier)
 }
 
 // 登入會重新載入頁面,打到一半的網址只好先寄放在瀏覽器。
@@ -806,7 +807,7 @@ async function renderSong(id, { mine = false } = {}) {
     actions.append(retry, other)
     panel.append(actions)
     // 練完了才出現,練習進行中不插廣告
-    window.teAds.render(panel, song.tier)
+    if (window.teAds) window.teAds.render(panel, song.tier)
     return panel
   }
 
@@ -1173,6 +1174,7 @@ async function renderSong(id, { mine = false } = {}) {
 
   function openBattle(code = '') {
     if (battle) return battle
+    if (!window.teBattle) return null
     battle = window.teBattle.attach({ song, mount: battleMount, engine: battleEngine, code })
     return battle
   }
