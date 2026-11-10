@@ -116,14 +116,21 @@
     return text ? [{ from: 0, to: text.length, word: text }] : []
   }
 
-  // 換句之後影片要不要跳。
+  // 影片還差這麼多秒才會唱到這一句的話,就直接跳過去。
+  // 抓四秒是為了讓歌本身的小間奏照樣播得出來 —— 每句之間停個兩三秒是正常的,
+  // 一碰到就跳會把歌切得很碎。但連按 Enter 跳好幾句時差距遠大於這個,就會跳。
+  const SEEK_LEAD_SECONDS = 4
+
+  // 換句之後影片要不要跳。影片要停在「你正在打的那一句」上:
   //   explicit:使用者自己點的(點歌詞、上一句/下一句、重聽)→ 一定跳
-  //   已經播過這一句了 → 倒回句首。不然你在打第 5 句、影片在唱第 8 句,整個練習就散了
-  //   還沒播到 → 不要動,讓它自然播過去(中間的前奏、間奏照樣聽得到)
-  function needsSeek(seconds, line, explicit = false) {
+  //   已經播過這一句了(打太慢)→ 倒回句首
+  //   還差很遠才會唱到(連按 Enter 跳過好幾句)→ 往前跳過去
+  //   快要唱到了 → 不要動,讓它自然播過去
+  function needsSeek(seconds, line, explicit = false, lead = SEEK_LEAD_SECONDS) {
     if (explicit) return true
     if (!line) return false
-    return seconds >= line.end
+    if (seconds >= line.end) return true
+    return seconds < line.start - lead
   }
 
   // 這個時間點該練哪一句:第一句還沒唱完的。全部唱完了就是最後一句

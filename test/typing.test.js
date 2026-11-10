@@ -212,10 +212,12 @@ test('已經播過這一句了就倒回句首 — 不然打第 5 句、影片唱
   assert.equal(needsSeek(14, LINE), true) // 剛唱完也算播過
 })
 
-test('還沒播到就不要動,讓它自然播過去(間奏照樣聽得到)', () => {
-  assert.equal(needsSeek(5, LINE), false)
+test('快要播到就不要動,讓它自然播過去(間奏照樣聽得到)', () => {
+  assert.equal(needsSeek(8, LINE), false) // 再兩秒就唱到了
   // 剛好在這句裡面:正在唱,更不能跳
   assert.equal(needsSeek(12, LINE), false)
+  // 但差太遠就要追上去(連按 Enter 跳過好幾句的情況)
+  assert.equal(needsSeek(1, LINE), true)
 })
 
 test('使用者自己點的(點歌詞、上一句、重聽)一定跳', () => {
@@ -234,4 +236,19 @@ test('大小寫不算錯 — 句首大寫、專有名詞、I 都聽不出來', (
   assert.ok(lineDone("i'm blinded by the lights", "I'm blinded by the lights"))
   // 打錯字還是要算錯
   assert.ok(!lineDone('all my friemds are heathens', 'All my friends are heathens'))
+})
+
+test('連按 Enter 跳過好幾句時,影片要追上來(不是停在原地)', () => {
+  // 影片在 41 秒,使用者已經跳到 1:20 那一句 —— 差太遠,要跳過去
+  assert.equal(needsSeek(41, { start: 80, end: 84 }), true)
+  // 快唱到了(四秒內)就不要動,讓歌自己的小間奏播出來
+  assert.equal(needsSeek(78, { start: 80, end: 84 }), false)
+  assert.equal(needsSeek(76.5, { start: 80, end: 84 }), false)
+})
+
+test('句末暫停之後接著下一句:不該亂跳(兩句首尾相接或只差一點點)', () => {
+  // 剛在上一句結尾停住(14.25),下一句從 14 開始 → 已經在這句裡面
+  assert.equal(needsSeek(14.25, { start: 14, end: 18 }), false)
+  // 中間有三秒間奏,還在容許範圍內 → 讓它自然播過去
+  assert.equal(needsSeek(14.25, { start: 17, end: 21 }), false)
 })
