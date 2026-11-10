@@ -423,3 +423,10 @@ test('真的英文歌不會被這道門檻誤殺', () => {
 test('句數太少也擋(兩三句撐不起一首歌)', () => {
   assert.equal(tooThin([{ start: 0, end: 2, text: 'Take it slow' }]), true)
 })
+
+test('擋下來的訊息要說得出「幾句、密度多少」,不然沒人知道為什麼', () => {
+  assert.throws(
+    () => buildSong({ videoId: 'TYGu-DnX8kg', meta: { title: 'x', channel: 'y', embeddable: true }, cues: JUNK }),
+    (err) => /只有 4 句/.test(err.message) && /0\.4 個字元/.test(err.message)
+  )
+})

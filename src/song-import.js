@@ -389,7 +389,10 @@ function buildSong({ videoId, meta = {}, cues, zhCues = [], id: wantedId = '', t
   if (lines.length === 0) throw importError('no_subtitles', '這支影片沒有可以用的英文字幕')
   // 有字幕軌但內容撐不起一首歌 —— 多半是非英文歌被硬辨識出幾個字
   if (tooThin(lines)) {
-    throw importError('thin_subtitles', `英文字幕太稀疏(只有  句)— 這首多半不是英文歌`)
+    throw importError(
+      'thin_subtitles',
+      `英文字幕太稀疏(只有 ${lines.length} 句,每秒 ${subtitleDensity(lines).toFixed(1)} 個字元)— 這首多半不是英文歌`
+    )
   }
   return {
     id: slugify(wantedId || title, `yt-${videoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`),
