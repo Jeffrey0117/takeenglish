@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { norm, same, lineDone, wordAt, lineIndexAt, createScore, pickBlanks, wholeLine } = require('../public/typing-core')
+const { norm, same, lineDone, wordAt, lineIndexAt, createScore, pickBlanks, autoBlankCount, wholeLine } = require('../public/typing-core')
 
 test('打不出來的字元會對應到鍵盤上打得出來的那個', () => {
   assert.equal(norm('’'), "'") // 彎的單引號
@@ -173,4 +173,32 @@ test('挖空只算挖掉的那幾個字的 WPM,不是整句', () => {
   clock.advance(1000)
   score.blankCleared('heathens') // 8 個字元
   assert.equal(score.state.correctChars, 8)
+})
+
+test('挖幾個字看句子長度:短句一個,長句兩個,中間偶爾兩個', () => {
+  assert.equal(autoBlankCount('Docked away'), 1)
+  assert.equal(autoBlankCount('Please take it slow'), 1)
+  // 很長的句子一定兩個(只挖一個太鬆)
+  assert.equal(autoBlankCount('The club isn’t the best place to find a lover, so the bar is where I go'), 2)
+  // 同一句每次一樣多 — 不然重練一次難度就跳動
+  const line = 'All my friends are heathens, take it slow'
+  assert.equal(autoBlankCount(line), autoBlankCount(line))
+})
+
+test('「有時候」真的是少數 — 整首歌不會每句都挖兩個', () => {
+  const lines = [
+    'All my friends are heathens, take it slow',
+    'Wait for them to ask you who you know',
+    'Please don’t make any sudden moves',
+    'You don’t know the half of the abuse',
+    'Welcome to the room of people',
+    'Who have rooms of people that they loved one day',
+    'Just because we check the guns at the door',
+    'You’ll never know the psychopath sitting next to you',
+    'Why’d you come, you knew you should have stayed',
+    'All my friends are heathens, take it slow'
+  ]
+  const two = lines.filter((text) => autoBlankCount(text) === 2).length
+  assert.ok(two >= 1, '完全沒有挖兩個的話就沒變化了')
+  assert.ok(two < lines.length, '每句都挖兩個就不叫「有時候」')
 })

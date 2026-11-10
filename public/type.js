@@ -20,8 +20,9 @@ const TEXT = {
   prev: '上一句',
   next: '下一句',
   speed: (rate) => `${rate}x`,
-  blankCount: (n) => (n === 0 ? '整句打' : `挖 ${n} 字`),
+  blankCount: (n) => (n === 'auto' ? '自動挖空' : n === 0 ? '整句打' : `挖 ${n} 字`),
   zh: '中文',
+  lyrics: '看歌詞',
   autoPause: '句末暫停',
   restart: '從頭開始',
   // 打字區
@@ -82,13 +83,13 @@ const END_GRACE = 0.25
 const SEEK_JUMP = 1.5
 // 按 Enter 看答案之後,停這麼久讓人看清楚再自動往下(再按一次 Enter 就馬上走)
 const REVEAL_MS = 1600
-// 一句挖幾個字:1 → 2 → 0(整句照打)
-const BLANK_COUNTS = [1, 2, 0]
+// 一句挖幾個字:自動(看句子長度)→ 固定 1 → 固定 2 → 0(整句照打)
+const BLANK_COUNTS = ['auto', 1, 2, 0]
 
 const $ = (sel) => document.querySelector(sel)
 const params = new URLSearchParams(location.search)
 const { el } = window.teStudy
-const { same, lineDone, lineIndexAt, createScore, pickBlanks, wholeLine } = window.teTyping
+const { same, lineDone, lineIndexAt, createScore, pickBlanks, autoBlankCount, wholeLine } = window.teTyping
 
 // 頁面訊息。第一次 render 之後 #type-status 就被換掉了,不能假設它還在
 function status(message) {
@@ -299,8 +300,19 @@ function createPlayer(mount, videoId, { onState, onError }) {
         videoId,
         // nocookie 網域:沒播之前不會在訪客瀏覽器種追蹤 cookie
         host: 'https://www.youtube-nocookie.com',
-        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, origin: location.origin },
+        // cc_load_policy: 0 = 不要預設開字幕。YouTube 自己的字幕會把整句答案
+        // 直接打在影片上,那這個練習就沒意義了
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, cc_load_policy: 0, iv_load_policy: 3, origin: location.origin },
         events: {
+          // 使用者的 YouTube 帳號如果把字幕設成「一律開啟」,playerVars 擋不住 — 載好之後再關一次
+          onReady: (event) => {
+            try {
+              event.target.unloadModule('captions')
+              event.target.unloadModule('cc')
+            } catch {
+              /* 這支影片沒有字幕模組就算了 */
+            }
+          },
           onStateChange: (event) => onState(event.data),
           onError: () => onError(new Error('video not embeddable'))
         }
@@ -374,12 +386,14 @@ async function renderSong(id, { mine = false } = {}) {
   const state = {
     index: 0,
     typed: '',
-    // 一句挖幾個字。0 = 不挖空,整句照打
-    blankCount: 1,
+    // 一句挖幾個字。'auto' = 看句子長度決定,0 = 不挖空整句照打
+    blankCount: 'auto',
     blanks: [],
     blankIndex: 0,
     revealed: false,
     showZh: true,
+    // 右欄歌詞:還沒練到的句子預設糊掉 — 不然答案整排就在旁邊,照抄就好了
+    showLyrics: false,
     speed: 0,
     autoPause: true,
     waiting: false,
@@ -394,7 +408,8 @@ async function renderSong(id, { mine = false } = {}) {
   // 這一句要挖哪幾個字
   function blanksFor(line) {
     if (!line) return []
-    return state.blankCount === 0 ? wholeLine(line.text) : pickBlanks(line.text, state.blankCount)
+    const count = state.blankCount === 'auto' ? autoBlankCount(line.text) : state.blankCount
+    return count === 0 ? wholeLine(line.text) : pickBlanks(line.text, count)
   }
 
   const currentBlank = () => state.blanks[state.blankIndex] || null
@@ -509,6 +524,8 @@ async function renderSong(id, { mine = false } = {}) {
     count.textContent = TEXT.progress(state.cleared, song.totalLines)
     fill.style.width = `${(state.cleared / song.totalLines) * 100}%`
     stats.update(state.cleared)
+    // 練過的那幾句看得到(當作進度),還沒練到的糊著
+    lyrics.classList.toggle('hide-answers', !state.showLyrics)
     rows.forEach((row, index) => {
       row.classList.toggle('active', index === state.index)
       row.classList.toggle('cleared', done[index] === 'cleared')
@@ -742,7 +759,7 @@ async function renderSong(id, { mine = false } = {}) {
   tool(TEXT.blankCount(state.blankCount), (button) => {
     state.blankCount = BLANK_COUNTS[(BLANK_COUNTS.indexOf(state.blankCount) + 1) % BLANK_COUNTS.length]
     button.textContent = TEXT.blankCount(state.blankCount)
-    button.classList.toggle('on', state.blankCount !== 1)
+    button.classList.toggle('on', state.blankCount !== 'auto')
     goTo(state.index)
   })
   // 這首歌沒有中文翻譯就不要擺一個按了沒反應的鈕
@@ -757,6 +774,15 @@ async function renderSong(id, { mine = false } = {}) {
       { on: true }
     )
   }
+  tool(
+    TEXT.lyrics,
+    (button) => {
+      state.showLyrics = !state.showLyrics
+      button.classList.toggle('on', state.showLyrics)
+      paintProgress()
+    },
+    { on: false }
+  )
   tool(
     TEXT.autoPause,
     (button) => {

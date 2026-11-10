@@ -136,3 +136,11 @@
 .mine-remove:focus { opacity: 1; }
 .mine-remove:hover { color: #ff6b6b; border-color: #ff6b6b; }
 .lesson-mine .lesson-add-note { color: var(--muted); font-size: 12px; font-weight: 700; }
+
+/* 右欄歌詞:還沒練到的句子糊掉。
+   不糊的話整首歌的答案就排在旁邊 — 照抄就好,根本不用聽。
+   練過的(✓ / …)留著看得到,那是進度。「看歌詞」鈕可以整個掀開。 */
+.type-lyrics.hide-answers .type-lyric:not(.cleared):not(.revealed) {
+  filter: blur(4.5px);
+  user-select: none;
+}

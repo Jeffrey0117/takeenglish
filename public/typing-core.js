@@ -93,6 +93,18 @@
     return picked.sort((a, b) => a.from - b.from)
   }
 
+  // 這一句該挖幾個字。固定挖一個太機械,長句子挖一個也太鬆 —
+  // 短句一個、長句兩個,中間長度的用句子的雜湊決定(大約一半會挖兩個)。
+  // 一樣是看句子內容算的,所以同一句每次都一樣多。
+  function autoBlankCount(text) {
+    const count = wordSpans(text).length
+    if (count < 7) return 1
+    if (count >= 12) return 2
+    // 中等長度的句子:大約三分之一會挖兩個 — 偶爾來一下才有變化,
+    // 每句都兩個的話就只是變難,不是變有趣
+    return hash(text) % 3 === 0 ? 2 : 1
+  }
+
   // 整句照打的時候,「挖空」就是整句一格
   function wholeLine(text) {
     return text ? [{ from: 0, to: text.length, word: text }] : []
@@ -172,7 +184,7 @@
     }
   }
 
-  const api = { norm, same, lineDone, wordAt, lineIndexAt, createScore, wordSpans, pickBlanks, wholeLine }
+  const api = { norm, same, lineDone, wordAt, lineIndexAt, createScore, wordSpans, pickBlanks, autoBlankCount, wholeLine }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   if (typeof window !== 'undefined') window.teTyping = api
 })()
