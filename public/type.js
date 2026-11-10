@@ -29,6 +29,7 @@ const TEXT = {
   hint: '整句都要打,點點的字要用聽的 · Enter 看答案並下一句 · Esc 重聽這句',
   waiting: '打完這一句,影片就繼續播(聽不出來按 Enter)',
   revealed: '這就是答案 — 馬上換下一句',
+  correct: '對了!',
   startHint: '按播放開始。整句都要打,點點的那幾個字要用聽的',
   // 成績
   wpm: 'WPM',
@@ -83,6 +84,8 @@ const END_GRACE = 0.25
 const SEEK_JUMP = 1.5
 // 按 Enter 看答案之後,停這麼久讓人看清楚再自動往下(再按一次 Enter 就馬上走)
 const REVEAL_MS = 1600
+// 整句打對之後亮綠多久才換下一句
+const CORRECT_MS = 420
 // 一句挖幾個字:自動(看句子長度)→ 固定 1 → 固定 2 → 0(整句照打)
 const BLANK_COUNTS = ['auto', 1, 2, 0]
 
@@ -390,6 +393,8 @@ async function renderSong(id, { mine = false } = {}) {
     blankCount: 'auto',
     blanks: [],
     revealed: false,
+    // 整句打對之後亮綠的那一下
+    correct: false,
     showZh: true,
     // 右欄歌詞:還沒練到的句子預設糊掉 — 不然答案整排就在旁邊,照抄就好了
     showLyrics: false,
@@ -403,6 +408,7 @@ async function renderSong(id, { mine = false } = {}) {
   // 每一句的狀態:false 沒練過 / 'cleared' 自己打出來 / 'revealed' 看了答案
   const done = new Array(song.lines.length).fill(false)
   let revealTimer = null
+  let correctTimer = null
 
   // 這一句要挖哪幾個字
   function blanksFor(line) {
@@ -516,9 +522,11 @@ async function renderSong(id, { mine = false } = {}) {
       }
       lineView.append(el('span', cls, shown))
     }
+    lineView.classList.toggle('correct', state.correct)
     zhView.textContent = state.showZh && line.zh ? line.zh : ''
-    hint.textContent = state.revealed ? TEXT.revealed : state.waiting ? TEXT.waiting : TEXT.hint
+    hint.textContent = state.correct ? TEXT.correct : state.revealed ? TEXT.revealed : state.waiting ? TEXT.waiting : TEXT.hint
     hint.classList.toggle('type-waiting', state.waiting || state.revealed)
+    hint.classList.toggle('type-correct', state.correct)
   }
 
   function paintProgress() {
@@ -559,6 +567,8 @@ async function renderSong(id, { mine = false } = {}) {
     // 離開這一句就停止計時,換句之間在發呆不算打字時間
     score.stop()
     clearTimeout(revealTimer)
+    clearTimeout(correctTimer)
+    state.correct = false
     state.index = Math.max(0, Math.min(index, song.lines.length - 1))
     state.typed = ''
     state.waiting = false
@@ -629,7 +639,19 @@ async function renderSong(id, { mine = false } = {}) {
       if (how === 'cleared') state.cleared += 1
     }
     score.stop()
+    if (how !== 'cleared') return advanceAfterLine()
+    // 打對了:整句亮綠一下再往下。沒有這一下的話,畫面只是突然換成下一句,
+    // 人不會知道自己剛剛過了 —— 那個「對了!」才是會想再打一句的原因
+    state.correct = true
+    repaint()
+    clearTimeout(correctTimer)
+    correctTimer = setTimeout(advanceAfterLine, CORRECT_MS)
+  }
+
+  function advanceAfterLine() {
+    clearTimeout(correctTimer)
     const resume = state.waiting
+    state.correct = false
     if (state.index + 1 >= song.lines.length) {
       repaint()
       finish()
@@ -644,7 +666,7 @@ async function renderSong(id, { mine = false } = {}) {
   // 不是只打那幾個字。每個字都還是要自己打出來。
   input.oninput = () => {
     const line = currentLine()
-    if (!line || state.revealed) {
+    if (!line || state.revealed || state.correct) {
       input.value = ''
       return
     }
@@ -698,7 +720,8 @@ async function renderSong(id, { mine = false } = {}) {
     // Enter:看答案 → 下一句。這是聽不出來時的出口,不然影片會一直停在那裡等
     if (event.key === 'Enter') {
       event.preventDefault()
-      reveal()
+      if (state.correct) advanceAfterLine()
+      else reveal()
       return
     }
     if (event.key === 'Tab') {

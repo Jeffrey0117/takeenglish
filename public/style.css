@@ -7,6 +7,8 @@
   --line: #2b2b2b;
   --text: #f5f5f0;
   --muted: #9a9a90;
+  /* 打對了的綠 */
+  --ok: #4ade80;
 }
 
 body {

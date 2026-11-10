@@ -163,3 +163,16 @@
 }
 .type-replay:hover { color: var(--yellow); border-color: var(--yellow); }
 .type-box { padding-right: 50px; }
+
+/* 整句打對的那一下:全句變綠、框也亮一下。
+   沒有這個回饋的話畫面只是突然換成下一句,人不會知道自己剛剛過了 */
+.type-line.correct .ch { color: var(--ok); }
+.type-line.correct .ch.cursor { box-shadow: none; animation: none; }
+.type-box:has(.type-line.correct) { border-color: var(--ok); }
+.type-hint.type-correct { color: var(--ok); font-weight: 900; }
+@keyframes type-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+.type-line.correct { animation: type-pop 0.22s ease-out; }
