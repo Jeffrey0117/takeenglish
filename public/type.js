@@ -24,6 +24,9 @@ const TEXT = {
   zh: '中文',
   lyrics: '看歌詞',
   autoPause: '句末暫停',
+  cover: '遮住畫面',
+  coverNote: '畫面遮住了 — 只用耳朵聽',
+  coverHint: '很多 MV 直接把歌詞印在畫面上,想純聽寫就遮起來',
   restart: '從頭開始',
   // 打字區
   hint: '整句都要打,點點的字要用聽的 · Enter 看答案並下一句 · Esc 重聽這句',
@@ -274,6 +277,25 @@ function mineCard(item, onRemoved) {
   return wrap
 }
 
+// 遮住畫面要跨首歌、跨分頁記住 — 會用的人每首都想遮。localStorage 壞掉(無痕/擋第三方)不能讓整頁掛掉
+const COVER_KEY = 'te-type-cover'
+
+function coverPref() {
+  try {
+    return localStorage.getItem(COVER_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setCoverPref(on) {
+  try {
+    localStorage.setItem(COVER_KEY, on ? '1' : '0')
+  } catch {
+    /* 記不住就算了,這一次還是遮著 */
+  }
+}
+
 // ---- YouTube 播放器 ----
 
 let ytLoading = null
@@ -320,7 +342,18 @@ function createPlayer(mount, videoId, { onState, onError }) {
               /* 這支影片沒有字幕模組就算了 */
             }
           },
-          onStateChange: (event) => onState(event.data),
+          onStateChange: (event) => {
+            // 使用者在播放器裡自己按了字幕,或 YouTube 換畫質時把字幕模組載回來 → 每次開始播就再關一次
+            if (event.data === 1) {
+              try {
+                event.target.unloadModule('captions')
+                event.target.unloadModule('cc')
+              } catch {
+                /* 沒有字幕模組就算了 */
+              }
+            }
+            onState(event.data)
+          },
           onError: () => onError(new Error('video not embeddable'))
         }
       })
@@ -369,7 +402,11 @@ async function renderSong(id, { mine = false } = {}) {
   const side = el('div', 'type-side')
   const playerBox = el('div', 'type-player')
   const mount = el('div')
-  playerBox.append(mount)
+  // ⚠️ 遮罩掛在 playerBox 不是 mount:YT.Player 會把 mount 整個換成 iframe,掛在裡面會連同遮罩一起消失
+  const cover = el('div', 'type-cover')
+  cover.append(el('p', 'type-cover-note', TEXT.coverNote), el('p', 'type-cover-hint', TEXT.coverHint))
+  playerBox.append(mount, cover)
+  if (coverPref()) playerBox.classList.add('covered')
   stage.append(playerBox, el('h1', 'type-heading', song.title))
   if (song.artist) stage.append(el('p', 'type-artist', song.artist))
   layout.append(stage, side)
@@ -809,6 +846,19 @@ async function renderSong(id, { mine = false } = {}) {
       button.classList.toggle('on', state.autoPause)
     },
     { on: true }
+  )
+  // 遮住畫面:關不掉的是「印在影片裡」的歌詞 — YouTube 字幕我們已經強制關掉,但歌詞 MV 的字是畫面本身
+  tool(
+    TEXT.cover,
+    (button) => {
+      const on = !playerBox.classList.contains('covered')
+      playerBox.classList.toggle('covered', on)
+      button.classList.toggle('on', on)
+      setCoverPref(on)
+      // 遮罩吃掉點擊,焦點會掉到按鈕上 — 拉回打字區
+      input.focus({ preventScroll: true })
+    },
+    { on: coverPref() }
   )
   tool(TEXT.restart, () => {
     // 成績也要歸零,不然第二輪的 WPM 會疊在第一輪上面
