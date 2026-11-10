@@ -80,6 +80,21 @@ cd takeenglish && npm start            # http://localhost:3300
 npm test
 ```
 
+## 改了前端檔案一定要重算 ?v=
+
+靜態檔對外是 `Cache-Control: public, max-age=14400`(四小時)。HTML 裡的 `?v=` 不跟著變的話,
+程式推上去了,使用者的瀏覽器還抱著舊的 JS 四小時 — **而且完全沒有徵兆**,看起來就是「改了沒反應」。
+
+```
+node ../../ver2/bin/ver2.js ./public
+```
+
+版本號是檔案內容的 md5 前八碼,內容沒變就不會動。`test/cache-bust.test.js` 會檢查
+每個 `?v=` 對不對得上檔案內容,忘了跑就會紅 — 不要靠記性。
+
+> 真的踩過:`type.js` 連改三版都還掛著 `?v=1`,手動維護的版本號也早就對不上
+>(`index.html` 寫 `style.css?v=11`,其他頁寫 `?v=10`)。
+
 ## 付費相關設定(.env)
 
 | 變數 | 說明 |
