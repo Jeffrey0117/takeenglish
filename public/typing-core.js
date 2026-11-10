@@ -48,6 +48,56 @@
     return text.slice(from, to).trim()
   }
 
+  // 挖空時跳過的字:冠詞、代名詞、助動詞這些挖了也沒在學英文
+  const SKIP_WORDS = new Set(
+    ('a an the and or but of to in on at for from with is are am was were be been it its this that these those ' +
+      'i me my you your we us our he him his she her they them their so if as do does did not no up out can will just ' +
+      'any all now too very oh yeah na la ooh hey')
+      .split(' ')
+  )
+
+  function hash(text) {
+    let value = 5381
+    for (let i = 0; i < text.length; i += 1) value = ((value << 5) + value + text.charCodeAt(i)) >>> 0
+    return value
+  }
+
+  // 一句話裡的英文單字和它們的位置
+  function wordSpans(text) {
+    const spans = []
+    for (const match of String(text || '').matchAll(/[A-Za-z][A-Za-z'’-]*/g)) {
+      spans.push({ from: match.index, to: match.index + match[0].length, word: match[0] })
+    }
+    return spans
+  }
+
+  // 真正的聽寫:整句看得到,只挖掉一兩個關鍵字,你只要打那幾個字。
+  // 挑哪幾個是固定的(同一句每次挖同樣的字),不然重練一次答案就變了;
+  // 挖兩個以上時平均散在句子裡,不要擠在一起。
+  function pickBlanks(text, count = 1) {
+    const spans = wordSpans(text)
+    if (spans.length === 0) return []
+    const worth = (span, min) => span.word.length >= min && !SKIP_WORDS.has(span.word.toLowerCase())
+    // 先挑有內容的長字(那才值得聽清楚),沒有就放寬,
+    // 整句都是小字(例如 "Oh I do")就從全部裡面挑 — 總不能不挖
+    const pool = spans.filter((s) => worth(s, 4)).length
+      ? spans.filter((s) => worth(s, 4))
+      : spans.filter((s) => worth(s, 3)).length
+        ? spans.filter((s) => worth(s, 3))
+        : spans
+    const want = Math.max(1, Math.min(count, pool.length))
+    const start = hash(text) % pool.length
+    const order = [...pool.slice(start), ...pool.slice(0, start)]
+    const picked = []
+    for (let i = 0; i < want; i += 1) picked.push(order[Math.floor((i * order.length) / want)])
+    return picked.sort((a, b) => a.from - b.from)
+  }
+
+  // 整句照打的時候,「挖空」就是整句一格
+  function wholeLine(text) {
+    return text ? [{ from: 0, to: text.length, word: text }] : []
+  }
+
   // 這個時間點該練哪一句:第一句還沒唱完的。全部唱完了就是最後一句
   function lineIndexAt(seconds, lines) {
     if (!Array.isArray(lines) || lines.length === 0) return 0
@@ -90,6 +140,11 @@
         state.wrong += 1
         if (word) misses.set(word, (misses.get(word) || 0) + 1)
       },
+      // 挖空模式下真正打到的只有挖空那幾個字,WPM 就只算那些
+      blankCleared(text) {
+        state.correctChars += text.length
+        stop()
+      },
       lineCleared(text) {
         state.correctChars += text.length
         stop()
@@ -117,7 +172,7 @@
     }
   }
 
-  const api = { norm, same, lineDone, wordAt, lineIndexAt, createScore }
+  const api = { norm, same, lineDone, wordAt, lineIndexAt, createScore, wordSpans, pickBlanks, wholeLine }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   if (typeof window !== 'undefined') window.teTyping = api
 })()

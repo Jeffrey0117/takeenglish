@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { norm, same, lineDone, wordAt, lineIndexAt, createScore } = require('../public/typing-core')
+const { norm, same, lineDone, wordAt, lineIndexAt, createScore, pickBlanks, wholeLine } = require('../public/typing-core')
 
 test('打不出來的字元會對應到鍵盤上打得出來的那個', () => {
   assert.equal(norm('’'), "'") // 彎的單引號
@@ -106,4 +106,71 @@ test('從頭開始會把成績歸零,第二輪不會疊在第一輪上', () => {
   clock.advance(1000)
   score.lineCleared('12345678901234567890')
   assert.equal(score.wpm(), firstWpm)
+})
+
+// ---- 挖空(真正的聽寫:整句看得到,只挖掉一兩個關鍵字) ----
+
+test('挖掉的是有內容的字,不是 the / my / are 這種', () => {
+  const picked = (text, n = 1) => pickBlanks(text, n).map((b) => b.word)
+  const weak = ['any', 'my', 'the', 'are', 'it', 'of', 'to', 'you', 'we', 'a', 'is']
+  const lines = [
+    'All my friends are heathens, take it slow',
+    'You don’t know the half of the abuse',
+    'Please don’t make any sudden moves',
+    'Wait for them to ask you who you know'
+  ]
+  for (const line of lines) {
+    for (const count of [1, 2]) {
+      for (const word of picked(line, count)) {
+        assert.ok(!weak.includes(word.toLowerCase()), `不該挖「${word}」(${line})`)
+        assert.ok(word.length >= 3, `挖的字太短:「${word}」(${line})`)
+      }
+    }
+  }
+})
+
+test('同一句每次挖一樣的字 — 重練時答案不能變', () => {
+  const text = 'Wait for them to ask you who you know'
+  assert.deepEqual(pickBlanks(text, 1), pickBlanks(text, 1))
+  assert.deepEqual(pickBlanks(text, 2), pickBlanks(text, 2))
+})
+
+test('挖出來的位置真的對得回原句', () => {
+  const text = 'All my friends are heathens, take it slow'
+  for (const blank of pickBlanks(text, 2)) {
+    assert.equal(text.slice(blank.from, blank.to), blank.word)
+  }
+})
+
+test('挖兩個字會散開,不會挑到同一個', () => {
+  const blanks = pickBlanks('Welcome to the room of people who have rooms of people that they loved one day', 2)
+  assert.equal(blanks.length, 2)
+  assert.notEqual(blanks[0].from, blanks[1].from)
+  assert.ok(blanks[0].to <= blanks[1].from, '兩格不能重疊')
+})
+
+test('整句都是小字也挖得出來(總不能不挖)', () => {
+  assert.equal(pickBlanks('Oh I do', 1).length, 1)
+  assert.equal(pickBlanks('Go', 1).length, 1)
+  assert.deepEqual(pickBlanks('', 1), [])
+  assert.deepEqual(pickBlanks('...', 1), [])
+})
+
+test('要的格子比句子裡的字還多時,就挖到沒得挖為止', () => {
+  assert.equal(pickBlanks('Docked away', 5).length, 2)
+})
+
+test('整句照打模式:整句就是一格', () => {
+  const text = 'Take it slow'
+  assert.deepEqual(wholeLine(text), [{ from: 0, to: text.length, word: text }])
+  assert.deepEqual(wholeLine(''), [])
+})
+
+test('挖空只算挖掉的那幾個字的 WPM,不是整句', () => {
+  const clock = fakeClock()
+  const score = createScore({ now: clock.now })
+  score.key(true, '')
+  clock.advance(1000)
+  score.blankCleared('heathens') // 8 個字元
+  assert.equal(score.state.correctChars, 8)
 })

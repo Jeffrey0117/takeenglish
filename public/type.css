@@ -37,7 +37,11 @@
   word-break: break-word;
   white-space: pre-wrap;
 }
+/* 沒挖空的部分:看得到,當提示用,顏色壓低不搶戲 */
 .type-line .ch { color: #5c5c58; }
+.type-line .ch.context { color: #8d8d84; }
+/* 按了 Enter 掀開的答案 */
+.type-line .ch.revealed { color: #7fd1ff; }
 .type-line .ch.hit { color: var(--yellow); }
 .type-line .ch.miss { color: #ff6b6b; background: rgba(255, 107, 107, 0.16); }
 .type-line .ch.masked { color: #46463f; }
@@ -84,6 +88,9 @@
 .type-lyric.active { border-left-color: var(--yellow); color: var(--text); background: rgba(255, 214, 10, 0.06); }
 .type-lyric.cleared { color: #6f6f66; }
 .type-lyric.cleared::after { content: " ✓"; color: var(--yellow); }
+/* 看過答案的那幾句:做個記號,結算時知道哪些是自己打出來的 */
+.type-lyric.revealed { color: #6f6f66; }
+.type-lyric.revealed::after { content: " …"; color: #7fd1ff; }
 .type-lock { padding: 22px 14px; text-align: center; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 214, 10, 0.03), rgba(255, 214, 10, 0.08)); }
 .type-lock .lock-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
 
