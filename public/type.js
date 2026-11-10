@@ -29,9 +29,9 @@ const TEXT = {
   coverHint: '很多 MV 直接把歌詞印在畫面上,想純聽寫就遮起來',
   restart: '從頭開始',
   // 打字區
-  hint: '整句都要打,點點的字要用聽的 · Enter 看答案並下一句 · Esc 重聽這句',
+  hint: '整句都要打,點點的字要用聽的 · Enter 看答案 · ↓ 下一句 · ↑ 上一句 · Shift+Enter 重聽',
   waiting: '打完這一句,影片就繼續播(聽不出來按 Enter)',
-  revealed: '這就是答案 — 馬上換下一句',
+  revealed: '這就是答案 — 照著打一次(這句不計分),或按 ↓ 跳下一句',
   correct: '對了!',
   startHint: '按播放開始。整句都要打,點點的那幾個字要用聽的',
   // 成績
@@ -87,8 +87,6 @@ const TICK_MS = 100
 const END_GRACE = 0.25
 // 跟上一次差這麼多就是使用者自己拖了進度條,要重新對句子
 const SEEK_JUMP = 1.5
-// 按 Enter 看答案之後,停這麼久讓人看清楚再自動往下(再按一次 Enter 就馬上走)
-const REVEAL_MS = 1600
 // 整句打對之後亮綠多久才換下一句
 const CORRECT_MS = 420
 // 一句挖幾個字:自動(看句子長度)→ 固定 1 → 固定 2 → 0(整句照打)
@@ -448,7 +446,6 @@ async function renderSong(id, { mine = false } = {}) {
   }
   // 每一句的狀態:false 沒練過 / 'cleared' 自己打出來 / 'revealed' 看了答案
   const done = new Array(song.lines.length).fill(false)
-  let revealTimer = null
   let correctTimer = null
 
   // 這一句要挖哪幾個字
@@ -607,7 +604,6 @@ async function renderSong(id, { mine = false } = {}) {
     results.replaceChildren()
     // 離開這一句就停止計時,換句之間在發呆不算打字時間
     score.stop()
-    clearTimeout(revealTimer)
     clearTimeout(correctTimer)
     state.correct = false
     state.index = Math.max(0, Math.min(index, song.lines.length - 1))
@@ -681,6 +677,8 @@ async function renderSong(id, { mine = false } = {}) {
     }
     score.stop()
     if (how !== 'cleared') return advanceAfterLine()
+    // 掀過答案的句子:照著打完照樣亮綠(那是練習本身),但不進 WPM
+    if (!state.revealed) score.lineCleared(line.text)
     // 打對了:整句亮綠一下再往下。沒有這一下的話,畫面只是突然換成下一句,
     // 人不會知道自己剛剛過了 —— 那個「對了!」才是會想再打一句的原因
     state.correct = true
@@ -707,11 +705,19 @@ async function renderSong(id, { mine = false } = {}) {
   // 不是只打那幾個字。每個字都還是要自己打出來。
   input.oninput = () => {
     const line = currentLine()
-    if (!line || state.revealed || state.correct) {
+    if (!line || state.correct) {
       input.value = ''
       return
     }
     const next = input.value
+    // 掀開答案之後還是可以照著打一次 —— 這是「看到正確答案就想自己打一遍」的那個需求。
+    // 但不記分也不抖:答案就在眼前,算進 WPM/正確率就是假的
+    if (state.revealed) {
+      state.typed = next
+      paintLine()
+      if (lineDone(next, line.text)) lineComplete('cleared')
+      return
+    }
     // 只在「多打了一個字」的時候記分:退格不罰,貼上不算成績
     if (next.length === state.typed.length + 1) {
       const at = next.length - 1
@@ -727,63 +733,69 @@ async function renderSong(id, { mine = false } = {}) {
     state.typed = next
     paintLine()
     stats.update(state.cleared)
-    if (lineDone(next, line.text)) {
-      score.lineCleared(line.text)
-      lineComplete('cleared')
-    }
+    if (lineDone(next, line.text)) lineComplete('cleared')
   }
 
-  // Enter:把答案掀開來給他看,一下下之後自動下一句(再按一次 Enter 就馬上走)
+  // Enter = 只是「給我看答案」,不會換句。
+  // 原本掀開後 1.6 秒自動下一句 —— 看到答案想照著打一次的人會被推走,
+  // 而手快按兩次 Enter 的人等於整句跳過沒練到。要往下請按 ↓ / Tab。
   function reveal() {
-    if (state.revealed) return nextAfterReveal()
+    if (state.revealed) return
     state.revealed = true
     state.typed = ''
     input.value = ''
     if (!done[state.index]) done[state.index] = 'revealed'
     paintLine()
     paintProgress()
-    clearTimeout(revealTimer)
-    revealTimer = setTimeout(nextAfterReveal, REVEAL_MS)
   }
 
-  function nextAfterReveal() {
-    clearTimeout(revealTimer)
-    if (!state.revealed) return
-    const resume = state.waiting
-    if (state.index + 1 >= song.lines.length) {
-      state.revealed = false
-      return finish()
-    }
-    goTo(state.index + 1, { resume })
+  const prevLine = () => goTo(state.index - 1, { seek: true })
+  const nextLine = () => {
+    if (state.index + 1 < song.lines.length) goTo(state.index + 1, { seek: true, resume: state.waiting })
+    else finish()
   }
+  const replayLine = () => goTo(state.index, { seek: true, resume: true })
 
   input.onkeydown = (event) => {
-    // Enter:看答案 → 下一句。這是聽不出來時的出口,不然影片會一直停在那裡等
     if (event.key === 'Enter') {
       event.preventDefault()
-      if (state.correct) advanceAfterLine()
+      // Shift+Enter 重聽這句:手不用離開打字的位置,比 Esc 好按
+      if (event.shiftKey) replayLine()
+      else if (state.correct) advanceAfterLine()
       else reveal()
+      return
+    }
+    // ↑ ↓ 換句。左右鍵留給游標 —— 打錯一個字母要往回移,那個不能被搶走
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      nextLine()
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      prevLine()
       return
     }
     if (event.key === 'Tab') {
       event.preventDefault()
-      if (event.shiftKey) goTo(state.index - 1, { seek: true })
-      else if (state.index + 1 < song.lines.length) goTo(state.index + 1, { seek: true, resume: state.waiting })
-      else finish()
+      if (event.shiftKey) prevLine()
+      else nextLine()
       return
     }
     if (event.key === 'Escape') {
       event.preventDefault()
-      goTo(state.index, { seek: true, resume: true })
+      replayLine()
     }
   }
 
   // ---- 控制列 ----
 
   // toggle: 這個鈕是開關(會亮起來),要讓讀螢幕的人也知道現在開著還是關著
-  function tool(label, onClick, { on = null } = {}) {
+  function tool(label, onClick, { on = null, title = '' } = {}) {
     const button = el('button', 'study-btn', label)
     button.type = 'button'
+    // 快捷鍵寫在 title:控制列已經夠擠了,但滑過去要查得到
+    if (title) button.title = title
     if (on !== null) {
       button.classList.toggle('on', on)
       button.setAttribute('aria-pressed', String(on))
@@ -797,12 +809,9 @@ async function renderSong(id, { mine = false } = {}) {
   }
 
   const playButton = tool(TEXT.play, () => (playing ? pause() : play()))
-  tool(TEXT.again, () => goTo(state.index, { seek: true, resume: true }))
-  tool(TEXT.prev, () => goTo(state.index - 1, { seek: true }))
-  tool(TEXT.next, () => {
-    if (state.index + 1 < song.lines.length) goTo(state.index + 1, { seek: true })
-    else finish()
-  })
+  tool(TEXT.again, () => replayLine(), { title: 'Shift+Enter(或 Esc)' })
+  tool(TEXT.prev, () => prevLine(), { title: '↑(或 Shift+Tab)' })
+  tool(TEXT.next, () => nextLine(), { title: '↓(或 Tab)' })
   tools.append(el('span', 'sep'))
   tool(TEXT.speed(SPEEDS[0]), (button) => {
     state.speed = (state.speed + 1) % SPEEDS.length
