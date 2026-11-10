@@ -116,6 +116,9 @@
 .type-result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .type-result-actions .auth-btn { text-decoration: none; }
 
+/* 廣告位:非付費會員才會畫出來(見 public/ads.js) */
+.ad-slot { margin-top: 20px; min-height: 0; overflow: hidden; }
+
 /* 對戰 */
 .battle { margin-top: 16px; padding: 16px 14px; border: 2px solid var(--line); background: #0a0a0a; }
 .battle .row-title { font-size: 13px; }

@@ -30,7 +30,8 @@ const PLAN_COPY = {
     summary: '重點整理與單字表',
     typing: '聽歌練英打',
     lessonUpload: '貼自己的 YouTube 影片',
-    download: '下載 mp4'
+    download: '下載 mp4',
+    ads: '沒有廣告'
   },
   full: '完整',
   preview: '預覽',
@@ -411,6 +412,8 @@ function planRows(free, pro) {
   // 聽歌練英打:訪客沒有,所以這一欄比的是免費會員能練幾句 vs Pro 整首
   if (state.config.songs) rows.push([PLAN_COPY.rows.typing, count(f.typingLines, '句'), count(p.typingLines, '句')])
   rows.push([PLAN_COPY.rows.download, f.download ? yes : no, p.download ? yes : no])
+  // 有接廣告才拿出來比 —— 沒接的時候「沒有廣告」對兩邊都成立,寫出來是騙人的
+  if (state.config.ads) rows.push([PLAN_COPY.rows.ads, f.ads ? no : yes, p.ads ? no : yes])
   return rows
 }
 

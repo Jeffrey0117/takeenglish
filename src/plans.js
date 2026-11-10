@@ -43,7 +43,7 @@ function createPlans({
         price: 0,
         // 訪客不是可以「選」的方案:功能閘門照用,但方案頁不畫(見 paywall-kit SKILL.md 方案頁鐵則)
         listed: false,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false, typing: false, typingLines: 0, typingCredits: 0, songUpload: 0 }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false, typing: false, typingLines: 0, typingCredits: 0, songUpload: 0, ads: true }
       },
       {
         id: 'free',
@@ -64,21 +64,23 @@ function createPlans({
           // 這裡 0 要是「一句都不給」,套下去會變成免費會員整首歌全拿
           typingLines: memberTypingLines,
           typingCredits: memberCredits,
-          songUpload: memberSongUploads
+          songUpload: memberSongUploads,
+          // 非付費會員會看到廣告。這是 Pro 的賣點之一,所以它屬於分層而不是版面設定
+          ads: true
         }
       },
       {
         id: 'pro',
         name: 'Pro',
         price: 0,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingCredits: UNLIMITED, songUpload: proSongUploads }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingCredits: UNLIMITED, songUpload: proSongUploads, ads: false }
       },
       {
         id: 'pro_plus',
         name: 'Pro Plus',
         price: 0,
         listed: plusListed,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingCredits: UNLIMITED, songUpload: plusSongUploads }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingCredits: UNLIMITED, songUpload: plusSongUploads, ads: false }
       }
     ]
   })

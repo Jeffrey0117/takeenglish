@@ -95,9 +95,18 @@ function createApp({
   songImporter = process.env.SONG_IMPORT === '0'
     ? null
     : ((ytdlp) => (url) => importFromYouTube(url, { ytdlp }))(createYtDlp()),
-  letmeuse = {}
+  letmeuse = {},
+  // 廣告位:兩個都設好而且格式對才會出現在頁面上
+  ads = { client: process.env.ADSENSE_CLIENT || '', slot: process.env.ADSENSE_SLOT || '' }
 }) {
   if (!tokens) throw new Error('createApp needs media tokens')
+
+  // ⚠️ 這兩個值會被前端塞進 <script src> 與 data-ad-*,所以在這裡就把格式鎖死,
+  // 不是信任 env 一定乾淨
+  const adsConfig =
+    /^ca-pub-[0-9]{10,20}$/.test(String(ads.client || '')) && /^[0-9]{6,20}$/.test(String(ads.slot || ''))
+      ? { client: String(ads.client), slot: String(ads.slot) }
+      : null
 
   const app = express()
   app.disable('x-powered-by')
@@ -220,7 +229,9 @@ function createApp({
         songs: songs.enabled,
         // 會員能不能自己貼 YouTube 連結加歌
         songImport: Boolean(songImporter && mySongs.enabled),
-        billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
+        billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null },
+        // 廣告只給非付費會員看(前端照 tier 決定要不要畫)
+        ads: adsConfig
       }
     })
   })

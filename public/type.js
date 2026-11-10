@@ -222,13 +222,13 @@ function songCard(item, best = null) {
 // 我的成績:最近幾輪 + 每首最佳。沒登入就整區不畫(回 null)
 async function scoresSection() {
   const res = await getJson('/api/type/scores')
-  if (!res.ok || !res.data) return { node: null, bests: {} }
+  if (!res.ok || !res.data) return { node: null, bests: {}, tier: 'guest' }
   const box = el('section', 'type-history')
   box.append(el('h2', 'row-title', TEXT.historyTitle))
   const items = Array.isArray(res.data.items) ? res.data.items : []
   if (items.length === 0) {
     box.append(el('p', 'lesson-sub', TEXT.historyEmpty))
-    return { node: box, bests: res.data.bests || {} }
+    return { node: box, bests: res.data.bests || {}, tier: res.data.tier }
   }
   const list = el('div', 'type-history-list')
   for (const run of items.slice(0, 10)) {
@@ -243,7 +243,7 @@ async function scoresSection() {
     list.append(row)
   }
   box.append(list)
-  return { node: box, bests: res.data.bests || {} }
+  return { node: box, bests: res.data.bests || {}, tier: res.data.tier }
 }
 
 async function renderList() {
@@ -269,6 +269,8 @@ async function renderList() {
   for (const item of res.data.items) grid.append(songCard(item, mine.bests[item.id] || null))
   main.append(grid)
   if (mine.node) main.append(mine.node)
+  // 廣告擺最底下,而且付費會員不畫
+  window.teAds.render(main, mine.tier)
 }
 
 // 登入會重新載入頁面,打到一半的網址只好先寄放在瀏覽器。
@@ -803,6 +805,8 @@ async function renderSong(id, { mine = false } = {}) {
     other.href = '/type'
     actions.append(retry, other)
     panel.append(actions)
+    // 練完了才出現,練習進行中不插廣告
+    window.teAds.render(panel, song.tier)
     return panel
   }
 

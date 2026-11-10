@@ -74,12 +74,13 @@ function mountScoreRoutes(app, { viewer, songs, mySongs, scores, plans, ledger, 
   })
 
   app.get('/api/type/scores', async (req, res) => {
-    const { user } = await viewer(req)
+    const { user, tier } = await viewer(req)
     if (!user) return fail(res, 401, 'unauthorized')
     const owner = ownerOf(user)
     if (tooMany(req, res, 'type-scores', 60, owner)) return
     res.set('Cache-Control', 'no-store')
-    return res.json({ success: true, data: { items: scores.history(owner, HISTORY_SIZE), bests: scores.bests(owner) } })
+    // tier 一起回:歌單頁要知道要不要畫廣告,不值得為它多打一次 /api/me
+    return res.json({ success: true, data: { tier, items: scores.history(owner, HISTORY_SIZE), bests: scores.bests(owner) } })
   })
 
   // 排行榜公開可讀(歌曲頁要給還沒登入的人看到「有人在練」),但名字已經去識別化

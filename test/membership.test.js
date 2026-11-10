@@ -401,3 +401,11 @@ test('role 不是 admin 的照常問 PayGate(不能自稱 admin 就全開以外�
     server.close()
   }
 })
+
+test('廣告:非付費會員有,付費會員沒有', () => {
+  const plans = createPlans({})
+  assert.equal(plans.can('guest', 'ads'), true)
+  assert.equal(plans.can('free', 'ads'), true)
+  assert.equal(plans.can('pro', 'ads'), false)
+  assert.equal(plans.can('pro_plus', 'ads'), false)
+})
