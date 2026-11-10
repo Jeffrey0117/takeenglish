@@ -44,6 +44,19 @@ const TEXT = {
   misses: '最常打錯',
   retry: '再練一次',
   otherSongs: '換一首',
+  // 成績與排行榜
+  boardTitle: '排行榜',
+  boardEmpty: '還沒有人留下成績 — 你可以是第一個',
+  scoreUploading: '上傳成績…',
+  scorePoints: (n) => `這一輪 ${n} 分`,
+  scoreRank: (n) => `這首第 ${n} 名`,
+  scoreSkipped: '這一輪沒記成績',
+  scoreNeedLines: (n) => `打完 ${n} 句以上才會記成績`,
+  scoreGuest: '登入後才會記成績、上排行榜',
+  scoreOffline: '成績沒存上(網路斷了?)',
+  historyTitle: '我的成績',
+  historyEmpty: '還沒有成績 — 練完一首就會出現在這裡',
+  historyBest: (n) => `最佳 ${n} 分`,
   // 會員牆
   gateTitle: '聽歌練英打是會員專屬',
   gateBody: '免費登入就可以開始練,每首歌先練 15 句;升級 Pro 整首歌不限。',
@@ -87,6 +100,8 @@ const TICK_MS = 100
 const END_GRACE = 0.25
 // 跟上一次差這麼多就是使用者自己拖了進度條,要重新對句子
 const SEEK_JUMP = 1.5
+// 打滿這麼多句才會記成績(跟 src/scores.js 的 MIN_CLEARED 一致)
+const MIN_SCORE_LINES = 3
 // 整句打對之後亮綠多久才換下一句
 const CORRECT_MS = 420
 // 一句挖幾個字:自動(看句子長度)→ 固定 1 → 固定 2 → 0(整句照打)
@@ -112,6 +127,35 @@ async function getJson(url) {
   return { status: res.status, ok: res.ok && body.success === true, data: body.data }
 }
 
+async function postJson(url, body) {
+  await window.teSession.ready
+  const token = window.teSession.getToken()
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body)
+  })
+  const parsed = await res.json().catch(() => ({}))
+  return { status: res.status, ok: res.ok && parsed.success === true, data: parsed.data }
+}
+
+// 排行榜的一列一列。名字是伺服器去識別化過的(暱稱或遮起來的信箱),這裡照用
+function boardTable(items, myRank = null) {
+  const table = el('div', 'type-board-list')
+  items.forEach((row, index) => {
+    const line = el('div', 'type-board-row')
+    if (myRank && index + 1 === myRank) line.classList.add('me')
+    line.append(
+      el('span', 'type-board-rank', String(index + 1)),
+      el('span', 'type-board-name', row.name),
+      el('b', 'type-board-points', String(row.points)),
+      el('span', 'type-board-meta', `${row.wpm} WPM · ${row.accuracy}% · ${row.cleared}/${row.total}`)
+    )
+    table.append(line)
+  })
+  return table
+}
+
 function showWall(song) {
   window.teWall.show({
     signedIn: song.signedIn,
@@ -127,7 +171,7 @@ function showWall(song) {
 // 只收 YouTube 縮圖網址。這個值會進 CSS 的 url(),在這裡擋住就不必相信後端每次都乾淨
 const THUMB = /^https:[/][/]i[.]ytimg[.]com[/]vi[/][A-Za-z0-9_-]{11}[/][a-z0-9]+[.]jpg$/
 
-function songCard(item) {
+function songCard(item, best = null) {
   const card = el('a', 'lesson-card')
   card.href = item.own ? `/type?mine=${encodeURIComponent(item.id)}` : `/type?id=${encodeURIComponent(item.id)}`
   const cover = el('div', 'lesson-cover')
@@ -136,7 +180,36 @@ function songCard(item) {
   if (item.duration) cover.append(el('span', 'lesson-duration', TEXT.minutes(item.duration)))
   cover.append(el('span', 'song-lines', TEXT.lines(item.lines)))
   card.append(cover, el('p', 'lesson-title', item.title), el('p', 'lesson-channel', item.artist))
+  // 練過的歌直接把自己的最佳分數寫在卡片上 —— 這是回來再練一次的理由
+  if (best) card.append(el('p', 'song-best', TEXT.historyBest(best.points)))
   return card
+}
+
+// 我的成績:最近幾輪 + 每首最佳。沒登入就整區不畫(回 null)
+async function scoresSection() {
+  const res = await getJson('/api/type/scores')
+  if (!res.ok || !res.data) return { node: null, bests: {} }
+  const box = el('section', 'type-history')
+  box.append(el('h2', 'row-title', TEXT.historyTitle))
+  const items = Array.isArray(res.data.items) ? res.data.items : []
+  if (items.length === 0) {
+    box.append(el('p', 'lesson-sub', TEXT.historyEmpty))
+    return { node: box, bests: res.data.bests || {} }
+  }
+  const list = el('div', 'type-history-list')
+  for (const run of items.slice(0, 10)) {
+    const row = el('div', 'type-history-row')
+    const when = String(run.at || '').slice(5, 10).replace('-', '/')
+    row.append(
+      el('span', 'type-history-when', when),
+      el('span', 'type-board-name', run.title),
+      el('b', 'type-board-points', String(run.points)),
+      el('span', 'type-board-meta', `${run.wpm} WPM · ${run.accuracy}% · ${run.cleared}/${run.total}`)
+    )
+    list.append(row)
+  }
+  box.append(list)
+  return { node: box, bests: res.data.bests || {} }
 }
 
 async function renderList() {
@@ -157,9 +230,11 @@ async function renderList() {
     main.append(el('p', 'watch-status', TEXT.empty))
     return
   }
+  const mine = await scoresSection()
   const grid = el('div', 'lesson-grid')
-  for (const item of res.data.items) grid.append(songCard(item))
+  for (const item of res.data.items) grid.append(songCard(item, mine.bests[item.id] || null))
   main.append(grid)
+  if (mine.node) main.append(mine.node)
 }
 
 // 登入會重新載入頁面,打到一半的網址只好先寄放在瀏覽器。
@@ -505,6 +580,21 @@ async function renderSong(id, { mine = false } = {}) {
   stage.append(progress, box, tools, stats.node, results)
   side.append(lyrics)
 
+  // 右欄底下的排行榜:進來就看得到別人打到幾分(自己貼的歌沒有公開榜)
+  if (!song.own) {
+    const panel = el('section', 'type-side-board')
+    const body = el('div', 'type-side-board-body')
+    panel.append(el('h2', 'row-title', TEXT.boardTitle), body)
+    side.append(panel)
+    getJson(`/api/type/board?songId=${encodeURIComponent(song.id)}`)
+      .then((res) => {
+        if (!res.ok || !res.data) return panel.remove()
+        const items = Array.isArray(res.data.items) ? res.data.items : []
+        body.replaceChildren(items.length ? boardTable(items.slice(0, 10)) : el('p', 'lesson-sub', TEXT.boardEmpty))
+      })
+      .catch(() => panel.remove())
+  }
+
   // 右欄歌詞:點一句就跳過去練那一句
   const rows = song.lines.map((line, index) => {
     const row = el('button', 'type-lyric', line.text)
@@ -646,6 +736,10 @@ async function renderSong(id, { mine = false } = {}) {
       }
       panel.append(list)
     }
+    const boardBox = el('div', 'type-board')
+    panel.append(boardBox)
+    // 不 await:成績面板要馬上出現,排行榜慢一點到沒關係
+    reportScore(boardBox, peeked)
     const actions = el('div', 'type-result-actions')
     const retry = el('button', 'auth-btn', TEXT.retry)
     retry.type = 'button'
@@ -655,6 +749,44 @@ async function renderSong(id, { mine = false } = {}) {
     actions.append(retry, other)
     panel.append(actions)
     return panel
+  }
+
+  // 把這一輪送上去,換回「第幾名 + 排行榜」。整段包在 try 裡 ——
+  // 成績存不上是小事,絕對不能讓成績面板本身壞掉
+  async function reportScore(boardBox, peeked) {
+    if (!song.signedIn) return boardBox.replaceChildren(el('p', 'type-board-note', TEXT.scoreGuest))
+    if (state.cleared < MIN_SCORE_LINES) {
+      return boardBox.replaceChildren(el('p', 'type-board-note', TEXT.scoreNeedLines(MIN_SCORE_LINES)))
+    }
+    boardBox.replaceChildren(el('p', 'type-board-note', TEXT.scoreUploading))
+    let res
+    try {
+      res = await postJson('/api/type/scores', {
+        songId: song.id,
+        own: song.own === true,
+        wpm: score.wpm(),
+        accuracy: score.accuracy(),
+        cleared: state.cleared,
+        total: song.totalLines,
+        peeked,
+        seconds: Math.round(score.seconds())
+      })
+    } catch {
+      res = null
+    }
+    if (!res || !res.ok || !res.data) return boardBox.replaceChildren(el('p', 'type-board-note', TEXT.scoreOffline))
+    const parts = []
+    if (res.data.recorded && res.data.run) {
+      const rank = res.data.rank ? ` · ${TEXT.scoreRank(res.data.rank)}` : ''
+      parts.push(el('p', 'type-board-mine', `${TEXT.scorePoints(res.data.run.points)}${rank}`))
+    } else {
+      parts.push(el('p', 'type-board-note', TEXT.scoreSkipped))
+    }
+    const board = Array.isArray(res.data.board) ? res.data.board : []
+    if (board.length) {
+      parts.push(el('h3', 'lesson-summary-h', TEXT.boardTitle), boardTable(board, res.data.rank))
+    }
+    boardBox.replaceChildren(...parts)
   }
 
   function finish() {

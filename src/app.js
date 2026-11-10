@@ -14,7 +14,9 @@ const { createAnnotator } = require('./annotator')
 const { createTranscriptLibrary } = require('./transcripts')
 const { createDictionary } = require('./dictionary')
 const { createLessonSource, mountLessonRoutes } = require('./lessons')
-const { createSongLibrary, createUserSongs, mountSongRoutes } = require('./songs')
+const { ownerOf, createSongLibrary, createUserSongs, mountSongRoutes } = require('./songs')
+const { createScores } = require('./scores')
+const { mountScoreRoutes } = require('./score-routes')
 const { createYtDlp, importFromYouTube } = require('./song-import')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
@@ -79,6 +81,8 @@ function createApp({
   transcripts = createTranscriptLibrary({ dir: path.join(__dirname, '..', 'data', 'transcripts') }),
   songs = createSongLibrary({ dir: path.join(__dirname, '..', 'data', 'songs') }),
   mySongs = createUserSongs({ dir: path.join(__dirname, '..', 'data', 'songs', 'users') }),
+  // 練打成績:個人歷史 + 每首歌排行榜(純檔案,部署不會動到未追蹤的 data/)
+  scores = createScores({ dir: path.join(__dirname, '..', 'data', 'scores') }),
   // 會員貼連結加歌:要有 yt-dlp 才開放(SONG_IMPORT=0 可以關掉)
   songImporter = process.env.SONG_IMPORT === '0'
     ? null
@@ -242,6 +246,7 @@ function createApp({
     // 「一天能加幾支」跟逐句解析共用同一套每日計數
     usage: createDailyUsage()
   })
+  mountScoreRoutes(app, { viewer, songs, mySongs, scores, limiter, clientIp, ownerOf })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })

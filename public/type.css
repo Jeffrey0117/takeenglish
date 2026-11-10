@@ -114,6 +114,48 @@
 .type-result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .type-result-actions .auth-btn { text-decoration: none; }
 
+/* 排行榜:結算面板裡一份、右欄底下一份,共用同一組列 */
+.type-board { margin-top: 16px; }
+.type-board-note { color: var(--muted); font-size: 13px; font-weight: 700; }
+.type-board-mine { font-size: 15px; font-weight: 900; color: var(--yellow); }
+.type-board-list { margin-top: 10px; display: flex; flex-direction: column; }
+.type-board-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 7px 8px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.type-board-row:last-child { border-bottom: 1px solid var(--line); }
+/* 自己那一列要一眼找得到 */
+.type-board-row.me { background: rgba(255, 214, 10, 0.1); }
+.type-board-rank { font-weight: 900; color: var(--muted); font-variant-numeric: tabular-nums; }
+.type-board-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-board-points { font-weight: 900; color: var(--yellow); font-variant-numeric: tabular-nums; }
+/* 細節(WPM/正確率/句數)擺第二行,窄螢幕不會把名字擠掉 */
+.type-board-meta { grid-column: 2 / -1; color: var(--muted); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.type-side-board { margin-top: 18px; }
+.type-side-board .row-title { font-size: 13px; }
+
+/* 歌單頁:我的成績 */
+.type-history { margin-top: 28px; }
+.type-history-list { margin-top: 10px; display: flex; flex-direction: column; }
+.type-history-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 7px 8px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.type-history-row:last-child { border-bottom: 1px solid var(--line); }
+.type-history-when { color: var(--muted); font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.type-history-row .type-board-meta { grid-column: 2 / -1; }
+.song-best { margin-top: 2px; color: var(--yellow); font-size: 12px; font-weight: 800; }
+
 @media (max-width: 900px) {
   .type-layout { grid-template-columns: 1fr; }
   .type-side { position: static; }

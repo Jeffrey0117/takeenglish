@@ -100,6 +100,10 @@ function createSongLibrary({
 // 會員自己貼連結加的歌:data/songs/users/<owner>/<id>.json。
 // 跟公開歌庫分開放,一來不會互相蓋到,二來誰加的就只有誰看得到。
 const OWNER_PATTERN = /^te-[A-Za-z0-9_-]{1,80}$/
+
+// 一個人一把鑰匙。用 sub(LetMeUse 的使用者代號)而不是 email:換了信箱還是同一個人。
+// ⚠️ 成績、credit 也用這把鑰匙 — 算法改了會讓所有人的資料對不上,要改就一起改
+const ownerOf = (user) => `te-${String((user && user.sub) || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)}`
 const MAX_PER_USER = 50
 
 function createUserSongs({ dir } = {}) {
@@ -219,9 +223,6 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
 
   // ---- 會員自己貼 YouTube 連結加的歌 ----
 
-  // 一個人一把鑰匙。用 sub(LetMeUse 的使用者代號)而不是 email:換了信箱還是同一個人
-  const ownerOf = (user) => `te-${String(user.sub || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)}`
-
   const canImport = () => Boolean(importer && mySongs.enabled)
 
   function summaryOf(song) {
@@ -324,4 +325,10 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
   })
 }
 
-module.exports = { createSongLibrary, createUserSongs, mountSongRoutes, SONG_ID_PATTERN: ID_PATTERN }
+module.exports = {
+  ownerOf,
+  createSongLibrary,
+  createUserSongs,
+  mountSongRoutes,
+  SONG_ID_PATTERN: ID_PATTERN
+}
