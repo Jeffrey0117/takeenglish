@@ -233,6 +233,8 @@ function createApp({
     clientIp,
     mySongs,
     importer: songImporter,
+    // 挑難字要靠離線字典(level 1 最常用 … 5 少見)
+    dictionary,
     // 「一天能加幾支」跟逐句解析共用同一套每日計數
     usage: createDailyUsage()
   })

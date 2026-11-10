@@ -27,7 +27,10 @@
     return base || ch
   }
 
-  const same = (a, b) => a !== undefined && b !== undefined && norm(a) === norm(b)
+  // 不分大小寫。大小寫是聽不出來的 —— 句首大寫、專有名詞、"I",
+  // 這些打成小寫判錯只是在扣分,跟有沒有聽懂無關。
+  // (打對了畫面上顯示的還是原本的大小寫,所以看起來照樣是正確的句子)
+  const same = (a, b) => a !== undefined && b !== undefined && norm(a).toLowerCase() === norm(b).toLowerCase()
 
   // 整句打完了沒。一個字一個字比,長度也要一樣(多打的不算完成)
   function lineDone(typed, text) {
@@ -61,6 +64,9 @@
     for (let i = 0; i < text.length; i += 1) value = ((value << 5) + value + text.charCodeAt(i)) >>> 0
     return value
   }
+
+  // 挖了沒在學英文的字(前後端共用同一份判斷)
+  const isWeakWord = (word) => SKIP_WORDS.has(String(word || '').toLowerCase())
 
   // 一句話裡的英文單字和它們的位置
   function wordSpans(text) {
@@ -108,6 +114,16 @@
   // 整句照打的時候,「挖空」就是整句一格
   function wholeLine(text) {
     return text ? [{ from: 0, to: text.length, word: text }] : []
+  }
+
+  // 換句之後影片要不要跳。
+  //   explicit:使用者自己點的(點歌詞、上一句/下一句、重聽)→ 一定跳
+  //   已經播過這一句了 → 倒回句首。不然你在打第 5 句、影片在唱第 8 句,整個練習就散了
+  //   還沒播到 → 不要動,讓它自然播過去(中間的前奏、間奏照樣聽得到)
+  function needsSeek(seconds, line, explicit = false) {
+    if (explicit) return true
+    if (!line) return false
+    return seconds >= line.end
   }
 
   // 這個時間點該練哪一句:第一句還沒唱完的。全部唱完了就是最後一句
@@ -184,7 +200,7 @@
     }
   }
 
-  const api = { norm, same, lineDone, wordAt, lineIndexAt, createScore, wordSpans, pickBlanks, autoBlankCount, wholeLine }
+  const api = { norm, same, lineDone, wordAt, lineIndexAt, needsSeek, createScore, wordSpans, isWeakWord, pickBlanks, autoBlankCount, wholeLine }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   if (typeof window !== 'undefined') window.teTyping = api
 })()

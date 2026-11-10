@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { norm, same, lineDone, wordAt, lineIndexAt, createScore, pickBlanks, autoBlankCount, wholeLine } = require('../public/typing-core')
+const { norm, same, lineDone, wordAt, lineIndexAt, createScore, needsSeek, pickBlanks, autoBlankCount, wholeLine } = require('../public/typing-core')
 
 test('打不出來的字元會對應到鍵盤上打得出來的那個', () => {
   assert.equal(norm('’'), "'") // 彎的單引號
@@ -201,4 +201,37 @@ test('「有時候」真的是少數 — 整首歌不會每句都挖兩個', () 
   const two = lines.filter((text) => autoBlankCount(text) === 2).length
   assert.ok(two >= 1, '完全沒有挖兩個的話就沒變化了')
   assert.ok(two < lines.length, '每句都挖兩個就不叫「有時候」')
+})
+
+// ---- 換句之後影片要不要跟著跳 ----
+
+const LINE = { start: 10, end: 14 }
+
+test('已經播過這一句了就倒回句首 — 不然打第 5 句、影片唱第 8 句', () => {
+  assert.equal(needsSeek(20, LINE), true)
+  assert.equal(needsSeek(14, LINE), true) // 剛唱完也算播過
+})
+
+test('還沒播到就不要動,讓它自然播過去(間奏照樣聽得到)', () => {
+  assert.equal(needsSeek(5, LINE), false)
+  // 剛好在這句裡面:正在唱,更不能跳
+  assert.equal(needsSeek(12, LINE), false)
+})
+
+test('使用者自己點的(點歌詞、上一句、重聽)一定跳', () => {
+  assert.equal(needsSeek(12, LINE, true), true)
+  assert.equal(needsSeek(5, LINE, true), true)
+})
+
+test('沒有句子就不要亂跳', () => {
+  assert.equal(needsSeek(12, null), false)
+})
+
+test('大小寫不算錯 — 句首大寫、專有名詞、I 都聽不出來', () => {
+  assert.ok(same('a', 'A'))
+  assert.ok(same('I', 'i'))
+  assert.ok(lineDone('all my friends are heathens', 'All my friends are heathens'))
+  assert.ok(lineDone("i'm blinded by the lights", "I'm blinded by the lights"))
+  // 打錯字還是要算錯
+  assert.ok(!lineDone('all my friemds are heathens', 'All my friends are heathens'))
 })

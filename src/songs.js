@@ -1,5 +1,6 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const { blanksForLines } = require('./song-blanks')
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/
 // YouTube 影片代號固定 11 碼。只認這個格式,不然等於讓資料檔決定 iframe 的網址
@@ -156,7 +157,13 @@ function createUserSongs({ dir } = {}) {
 
 // 誰能練由 plans 決定:typing = 進不進得去(訪客不行),typingLines = 這首歌開放幾句。
 // 鎖住的句子連內容都不送出去 — 跟搜尋結果一樣,F12 看不到多的。
-function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs = createUserSongs(), importer = null, usage = null }) {
+function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs = createUserSongs(), importer = null, usage = null, dictionary = null }) {
+  // 挖空候選算一次就好(同一個 song 物件會重複拿到);會員自己的歌每次重讀,就每次算
+  const blankCache = new WeakMap()
+  function blanksOf(song) {
+    if (!blankCache.has(song)) blankCache.set(song, blanksForLines(song.lines, dictionary))
+    return blankCache.get(song)
+  }
   function tooMany(req, res, bucket, max) {
     if (limiter.check(`${bucket}:${clientIp(req)}`, max).allowed) return false
     res.set('Retry-After', '30')
@@ -172,6 +179,8 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     // null = 不限,數字 = 前幾句,其他(例如未知的等級讓 paywall-kit 回 false)一律一句都不給
     const visible = limit === null ? song.lines : typeof limit === 'number' ? song.lines.slice(0, limit) : []
     const lastVisible = visible[visible.length - 1]
+    // 每一句附上「挖哪幾個字」的候選位置(難的排前面),前端決定要用幾個
+    const candidates = blanksOf(song)
     return {
       id: song.id,
       title: song.title,
@@ -189,7 +198,7 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
       lockedFrom: visible.length < song.lines.length
         ? Math.max(song.lines[visible.length].start, lastVisible ? lastVisible.end : 0)
         : null,
-      lines: visible
+      lines: visible.map((line, index) => ({ ...line, blanks: candidates[index] || [] }))
     }
   }
 

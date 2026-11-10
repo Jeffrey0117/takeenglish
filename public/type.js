@@ -20,16 +20,16 @@ const TEXT = {
   prev: '上一句',
   next: '下一句',
   speed: (rate) => `${rate}x`,
-  blankCount: (n) => (n === 'auto' ? '自動挖空' : n === 0 ? '整句打' : `挖 ${n} 字`),
+  blankCount: (n) => (n === 'auto' ? '自動挖空' : n === 0 ? '全挖空' : `挖 ${n} 字`),
   zh: '中文',
   lyrics: '看歌詞',
   autoPause: '句末暫停',
   restart: '從頭開始',
   // 打字區
-  hint: '打出挖掉的字 · Enter 看答案並下一句 · Esc 重聽這句',
-  waiting: '打出挖掉的字,影片就繼續播(聽不出來按 Enter)',
+  hint: '整句都要打,點點的字要用聽的 · Enter 看答案並下一句 · Esc 重聽這句',
+  waiting: '打完這一句,影片就繼續播(聽不出來按 Enter)',
   revealed: '這就是答案 — 馬上換下一句',
-  startHint: '按播放開始。整句看得到,只要打挖掉的那個字',
+  startHint: '按播放開始。整句都要打,點點的那幾個字要用聽的',
   // 成績
   wpm: 'WPM',
   accuracy: '正確率',
@@ -89,7 +89,7 @@ const BLANK_COUNTS = ['auto', 1, 2, 0]
 const $ = (sel) => document.querySelector(sel)
 const params = new URLSearchParams(location.search)
 const { el } = window.teStudy
-const { same, lineDone, lineIndexAt, createScore, pickBlanks, autoBlankCount, wholeLine } = window.teTyping
+const { same, lineDone, wordAt, lineIndexAt, needsSeek, createScore, pickBlanks, autoBlankCount, wholeLine } = window.teTyping
 
 // 頁面訊息。第一次 render 之後 #type-status 就被換掉了,不能假設它還在
 function status(message) {
@@ -389,7 +389,6 @@ async function renderSong(id, { mine = false } = {}) {
     // 一句挖幾個字。'auto' = 看句子長度決定,0 = 不挖空整句照打
     blankCount: 'auto',
     blanks: [],
-    blankIndex: 0,
     revealed: false,
     showZh: true,
     // 右欄歌詞:還沒練到的句子預設糊掉 — 不然答案整排就在旁邊,照抄就好了
@@ -409,10 +408,16 @@ async function renderSong(id, { mine = false } = {}) {
   function blanksFor(line) {
     if (!line) return []
     const count = state.blankCount === 'auto' ? autoBlankCount(line.text) : state.blankCount
-    return count === 0 ? wholeLine(line.text) : pickBlanks(line.text, count)
+    if (count === 0) return wholeLine(line.text)
+    // 伺服器那邊有離線字典,候選已經照難度排好(難的在前面),而且同一句重複出現時
+    // 會換一個字挖。拿不到就退回前端自己挑(字典沒載入時)
+    const ranked = Array.isArray(line.blanks) ? line.blanks : []
+    if (ranked.length === 0) return pickBlanks(line.text, count)
+    return ranked
+      .slice(0, count)
+      .map(([from, to]) => ({ from, to, word: line.text.slice(from, to) }))
+      .sort((a, b) => a.from - b.from)
   }
-
-  const currentBlank = () => state.blanks[state.blankIndex] || null
 
   // 進度
   const progress = el('div', 'type-progress')
@@ -433,7 +438,17 @@ async function renderSong(id, { mine = false } = {}) {
   input.autocapitalize = 'off'
   input.spellcheck = false
   input.setAttribute('aria-label', TEXT.heading)
-  box.append(lineView, zhView, hint, input)
+  // 重聽這句:就放在打字區右上角,聽不清楚的當下手不用離開這裡去找工具列。
+  // 要排在 input 後面 —— input 鋪滿整個框(inset: 0),先放的話按鈕會被它蓋住
+  const replay = el('button', 'type-replay', '↺')
+  replay.type = 'button'
+  replay.title = TEXT.again
+  replay.setAttribute('aria-label', TEXT.again)
+  replay.onclick = (event) => {
+    event.stopPropagation()
+    goTo(state.index, { seek: true, resume: true })
+  }
+  box.append(lineView, zhView, hint, input, replay)
   box.onclick = () => input.focus({ preventScroll: true })
   input.onfocus = () => box.classList.add('focused')
   input.onblur = () => box.classList.remove('focused')
@@ -479,39 +494,25 @@ async function renderSong(id, { mine = false } = {}) {
     const typed = state.typed
     for (let i = 0; i < line.text.length; i += 1) {
       const expected = line.text[i]
-      const slot = state.blanks.findIndex((blank) => i >= blank.from && i < blank.to)
-      // 不是挖空的部分:照原樣顯示,當提示用
-      if (slot === -1) {
-        lineView.append(el('span', 'ch context', expected))
-        continue
-      }
-      if (state.revealed) {
-        lineView.append(el('span', 'ch revealed', expected))
-        continue
-      }
-      // 已經打完的格子:留著答案
-      if (slot < state.blankIndex) {
-        lineView.append(el('span', 'ch hit', expected))
-        continue
-      }
-      // 還沒輪到的格子:整格都是點
-      if (slot > state.blankIndex) {
-        lineView.append(el('span', 'ch masked', '·'))
-        continue
-      }
-      // 現在這一格
-      const at = i - state.blanks[slot].from
+      const hidden = state.blanks.some((blank) => i >= blank.from && i < blank.to)
       let cls = 'ch'
-      let shown = '·'
-      if (at < typed.length) {
-        const hit = same(typed[at], expected)
+      let shown = expected
+      // 已經打到的位置:對就留原字,錯就顯示他實際打的那個(不然看不出哪裡錯)
+      if (i < typed.length) {
+        const hit = same(typed[i], expected)
         cls += hit ? ' hit' : ' miss'
-        // 打錯的位置顯示他實際打的那個字,不然看不出哪裡錯
-        shown = hit ? expected : typed[at] === ' ' ? '␣' : typed[at]
-      } else if (at === typed.length) {
-        cls += ' cursor masked'
+        if (!hit) shown = typed[i] === ' ' ? '␣' : typed[i]
       } else {
-        cls += ' masked'
+        if (i === typed.length) cls += ' cursor'
+        if (!hidden) {
+          // 沒挖掉的字照樣看得到 —— 整句還是要一個一個打完,這些只是不用「聽」出來
+          cls += ' context'
+        } else if (state.revealed) {
+          cls += ' revealed'
+        } else {
+          cls += ' masked'
+          shown = '·'
+        }
       }
       lineView.append(el('span', cls, shown))
     }
@@ -565,10 +566,12 @@ async function renderSong(id, { mine = false } = {}) {
     input.value = ''
     const line = currentLine()
     state.blanks = blanksFor(line)
-    state.blankIndex = 0
-    // 多打的字會憑空消失(畫面只畫得出那一格那麼長),乾脆讓它打不進去
-    input.maxLength = state.blanks.length ? state.blanks[0].word.length : 0
-    if (shouldSeek && line) {
+    // 多打的字會憑空消失(畫面只畫得出歌詞那麼長),乾脆讓它打不進去
+    input.maxLength = line ? line.text.length : 0
+    // 影片要跟著句子走。已經播過這一句了(打太慢、或剛剛跳了句)就倒回句首,
+    // 不然你在打第 5 句、影片在唱第 8 句,這個練習就散了。
+    // 還沒播到不用動 —— 讓它自然播過去,中間的前奏/間奏照樣聽得到
+    if (needsSeek(time(), line, shouldSeek)) {
       seek(line.start)
       state.lastTime = line.start
     }
@@ -637,9 +640,11 @@ async function renderSong(id, { mine = false } = {}) {
 
   // ---- 鍵盤 ----
 
+  // 打的是「整句」—— 挖空只是把其中一兩個字蓋起來讓你用聽的,
+  // 不是只打那幾個字。每個字都還是要自己打出來。
   input.oninput = () => {
-    const blank = currentBlank()
-    if (!blank || state.revealed) {
+    const line = currentLine()
+    if (!line || state.revealed) {
       input.value = ''
       return
     }
@@ -647,9 +652,9 @@ async function renderSong(id, { mine = false } = {}) {
     // 只在「多打了一個字」的時候記分:退格不罰,貼上不算成績
     if (next.length === state.typed.length + 1) {
       const at = next.length - 1
-      const expected = blank.word[at]
+      const expected = line.text[at]
       const correct = expected !== undefined && same(next[at], expected)
-      score.key(correct, correct ? '' : blank.word)
+      score.key(correct, correct ? '' : wordAt(line.text, at))
       if (!correct) {
         box.classList.remove('wrong')
         void box.offsetWidth
@@ -659,23 +664,10 @@ async function renderSong(id, { mine = false } = {}) {
     state.typed = next
     paintLine()
     stats.update(state.cleared)
-    if (lineDone(next, blank.word)) blankComplete()
-  }
-
-  // 一格打完:還有下一格就換下一格,整句的格子都打完才算這句過了
-  function blankComplete() {
-    const blank = currentBlank()
-    if (!blank) return
-    score.blankCleared(blank.word)
-    if (state.blankIndex + 1 < state.blanks.length) {
-      state.blankIndex += 1
-      state.typed = ''
-      input.value = ''
-      input.maxLength = currentBlank().word.length
-      paintLine()
-      return
+    if (lineDone(next, line.text)) {
+      score.lineCleared(line.text)
+      lineComplete('cleared')
     }
-    lineComplete('cleared')
   }
 
   // Enter:把答案掀開來給他看,一下下之後自動下一句(再按一次 Enter 就馬上走)
@@ -815,6 +807,7 @@ async function renderSong(id, { mine = false } = {}) {
         state.typed = ''
         input.value = ''
         input.maxLength = song.lines[index].text.length
+        state.blanks = blanksFor(song.lines[index])
         state.waiting = false
         repaint()
       }

@@ -144,3 +144,22 @@
   filter: blur(4.5px);
   user-select: none;
 }
+
+/* 重聽這句:打字區右上角,手不用離開打字的地方 */
+.type-replay {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.type-replay:hover { color: var(--yellow); border-color: var(--yellow); }
+.type-box { padding-right: 50px; }
