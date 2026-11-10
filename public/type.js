@@ -184,6 +184,24 @@ async function spendCredit(button, note) {
   note.textContent = res && res.status === 402 ? TEXT.creditNone : TEXT.creditFailed
 }
 
+// 右欄底下的排行榜:進來就看得到別人打到幾分。
+// 訪客也要看得到 —— 那是「這裡有人在玩」最直接的證據,也是登入的理由
+// (自己貼連結加的歌沒有公開榜,別人根本沒那首)
+function sideBoard(side, song) {
+  if (song.own) return
+  const panel = el('section', 'type-side-board')
+  const body = el('div', 'type-side-board-body')
+  panel.append(el('h2', 'row-title', TEXT.boardTitle), body)
+  side.append(panel)
+  getJson(`/api/type/board?songId=${encodeURIComponent(song.id)}`)
+    .then((res) => {
+      if (!res.ok || !res.data) return panel.remove()
+      const items = Array.isArray(res.data.items) ? res.data.items : []
+      body.replaceChildren(items.length ? boardTable(items.slice(0, 10)) : el('p', 'lesson-sub', TEXT.boardEmpty))
+    })
+    .catch(() => panel.remove())
+}
+
 function showWall(song) {
   const left = creditsLeft(song)
   window.teWall.show({
@@ -531,6 +549,7 @@ async function renderSong(id, { mine = false } = {}) {
     button.onclick = () => (song.signedIn ? showWall(song) : window.teSession.login())
     gate.append(button)
     stage.append(gate)
+    sideBoard(side, song)
     await mountPlayer(playerBox, mount, song, {})
     watchSignIn()
     return
@@ -621,21 +640,7 @@ async function renderSong(id, { mine = false } = {}) {
   const battleMount = el('div', 'battle-mount')
   stage.append(progress, box, tools, stats.node, battleMount, results)
   side.append(lyrics)
-
-  // 右欄底下的排行榜:進來就看得到別人打到幾分(自己貼的歌沒有公開榜)
-  if (!song.own) {
-    const panel = el('section', 'type-side-board')
-    const body = el('div', 'type-side-board-body')
-    panel.append(el('h2', 'row-title', TEXT.boardTitle), body)
-    side.append(panel)
-    getJson(`/api/type/board?songId=${encodeURIComponent(song.id)}`)
-      .then((res) => {
-        if (!res.ok || !res.data) return panel.remove()
-        const items = Array.isArray(res.data.items) ? res.data.items : []
-        body.replaceChildren(items.length ? boardTable(items.slice(0, 10)) : el('p', 'lesson-sub', TEXT.boardEmpty))
-      })
-      .catch(() => panel.remove())
-  }
+  sideBoard(side, song)
 
   // 右欄歌詞:點一句就跳過去練那一句
   const rows = song.lines.map((line, index) => {
