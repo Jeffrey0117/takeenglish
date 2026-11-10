@@ -6,13 +6,14 @@ const { execFileSync } = require('node:child_process')
 
 const ROOT = path.join(__dirname, '..')
 
-// server.js 和 public/app.js 沒有其他測試會載入,語法壞掉要到部署才爆 — 這裡先擋
+// server.js 和前端的 public/*.js 沒有其他測試會載入,語法壞掉要到部署才爆 — 這裡先擋
 function sourceFiles() {
-  const src = fs
-    .readdirSync(path.join(ROOT, 'src'))
-    .filter((name) => name.endsWith('.js'))
-    .map((name) => path.join('src', name))
-  return ['server.js', path.join('public', 'app.js'), ...src]
+  const inDir = (dir) =>
+    fs
+      .readdirSync(path.join(ROOT, dir))
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => path.join(dir, name))
+  return ['server.js', ...inDir('public'), ...inDir('src')]
 }
 
 for (const file of sourceFiles()) {

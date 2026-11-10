@@ -14,6 +14,7 @@ const { createAnnotator } = require('./annotator')
 const { createTranscriptLibrary } = require('./transcripts')
 const { createDictionary } = require('./dictionary')
 const { createLessonSource, mountLessonRoutes } = require('./lessons')
+const { createSongLibrary, mountSongRoutes } = require('./songs')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
@@ -75,6 +76,7 @@ function createApp({
   dictionary = createDictionary({ dir: path.join(__dirname, '..', 'data', 'dictionary') }),
   lessons = createLessonSource(),
   transcripts = createTranscriptLibrary({ dir: path.join(__dirname, '..', 'data', 'transcripts') }),
+  songs = createSongLibrary({ dir: path.join(__dirname, '..', 'data', 'songs') }),
   letmeuse = {}
 }) {
   if (!tokens) throw new Error('createApp needs media tokens')
@@ -109,6 +111,7 @@ function createApp({
 
   app.get('/watch', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'watch.html')))
   app.get('/lessons', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'lessons.html')))
+  app.get('/type', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'type.html')))
 
   app.use(express.static(PUBLIC_DIR))
 
@@ -191,6 +194,8 @@ function createApp({
         // 點字查詞用的離線字典有沒有載入
         dictionary: dictionary.enabled,
         lessons: lessons.enabled,
+        // 聽歌練英打有沒有歌可以練
+        songs: songs.enabled,
         billing: { enabled: billingReady, plan: billingReady ? await paygate.plan() : null }
       }
     })
@@ -212,6 +217,7 @@ function createApp({
   })
   mountDictionaryRoute(app, { dictionary, limiter, clientIp })
   mountLessonRoutes(app, { source: lessons, viewer, plans, limiter, clientIp })
+  mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })

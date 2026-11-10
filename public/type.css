@@ -1,0 +1,110 @@
+/* 聽歌練英打 */
+.type-hero { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.type-badge { padding: 2px 8px; background: var(--yellow); color: #000; font-size: 12px; font-weight: 900; letter-spacing: 1px; }
+.song-level { position: absolute; left: 6px; top: 6px; padding: 2px 7px; background: rgba(0, 0, 0, 0.8); color: var(--yellow); font-size: 12px; font-weight: 900; }
+.song-lines { position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; background: rgba(0, 0, 0, 0.8); font-size: 12px; font-weight: 800; }
+
+.type-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: 24px; align-items: start; }
+.type-stage { min-width: 0; }
+.type-player { position: relative; aspect-ratio: 16 / 9; background: #000; border: 2px solid var(--line); }
+.type-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* 不能嵌入播放時的訊息(這時框裡沒有影片,不用撐成 16:9) */
+.type-player.failed { aspect-ratio: auto; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px; }
+.type-heading { font-size: 20px; font-weight: 900; margin-top: 14px; line-height: 1.35; }
+.type-artist { color: var(--muted); font-size: 13px; font-weight: 700; margin-top: 3px; }
+
+/* 進度 */
+.type-progress { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.type-progress-bar { flex: 1; height: 6px; background: var(--line); overflow: hidden; }
+.type-progress-fill { display: block; height: 100%; width: 0; background: var(--yellow); transition: width 0.2s; }
+.type-progress-count { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 打字區 */
+.type-box { margin-top: 16px; padding: 22px 18px; border: 2px solid var(--line); background: #0a0a0a; position: relative; cursor: text; }
+.type-box.focused { border-color: var(--yellow); }
+.type-box.wrong { animation: type-shake 0.16s; }
+@keyframes type-shake {
+  0%, 100% { transform: translateX(0); }
+  33% { transform: translateX(-3px); }
+  66% { transform: translateX(3px); }
+}
+.type-line {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: clamp(17px, 2.4vw, 24px);
+  font-weight: 700;
+  line-height: 1.9;
+  letter-spacing: 1px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.type-line .ch { color: #5c5c58; }
+.type-line .ch.hit { color: var(--yellow); }
+.type-line .ch.miss { color: #ff6b6b; background: rgba(255, 107, 107, 0.16); }
+.type-line .ch.masked { color: #46463f; }
+.type-line .ch.cursor { box-shadow: inset 0 -3px 0 var(--yellow); }
+.type-box.focused .type-line .ch.cursor { animation: type-blink 1s step-end infinite; }
+@keyframes type-blink {
+  50% { box-shadow: inset 0 -3px 0 transparent; }
+}
+.type-zh { margin-top: 10px; color: var(--muted); font-size: 14px; font-weight: 600; }
+/* 真正收鍵盤的輸入框:透明、鋪滿整個打字區。
+   ⚠️ 不要把它縮成 1px 的隱藏框 — Chrome 會把游標卡在位置 0,打出來的字整句反過來。
+   鋪滿還有兩個好處:點哪裡都能開始打,手機會跳出鍵盤。 */
+.type-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font: inherit;
+  opacity: 0;
+}
+.type-input:focus { outline: none; }
+.type-hint { margin-top: 12px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.type-waiting { color: var(--yellow); }
+
+/* 控制列 */
+.type-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.type-tools .study-btn { padding: 5px 10px; font-size: 12px; }
+.type-tools .sep { width: 1px; height: 18px; background: var(--line); }
+
+/* 右欄:歌詞與成績 */
+.type-side { min-width: 0; position: sticky; top: 76px; }
+.type-stats { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.type-stat { background: #0a0a0a; padding: 10px 8px; text-align: center; }
+.type-stat b { display: block; font-size: 20px; font-weight: 900; color: var(--yellow); font-variant-numeric: tabular-nums; }
+.type-stat span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+.type-lyrics { margin-top: 0; border: 1px solid var(--line); background: #0a0a0a; max-height: calc(100vh - 220px); overflow-y: auto; }
+.type-lyric { display: block; width: 100%; padding: 8px 12px; background: transparent; border: 0; border-left: 3px solid transparent; color: var(--muted); font-size: 13px; font-weight: 600; text-align: left; line-height: 1.5; cursor: pointer; }
+.type-lyric:hover { color: var(--text); }
+.type-lyric.active { border-left-color: var(--yellow); color: var(--text); background: rgba(255, 214, 10, 0.06); }
+.type-lyric.cleared { color: #6f6f66; }
+.type-lyric.cleared::after { content: " ✓"; color: var(--yellow); }
+.type-lock { padding: 22px 14px; text-align: center; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 214, 10, 0.03), rgba(255, 214, 10, 0.08)); }
+.type-lock .lock-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+
+/* 會員牆(整頁的) */
+.type-gate { margin-top: 18px; padding: 26px 20px; border: 2px solid var(--yellow); background: rgba(255, 214, 10, 0.05); text-align: center; }
+.type-gate h2 { font-size: 18px; font-weight: 900; }
+.type-gate p { margin-top: 8px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.type-gate .auth-btn { margin-top: 16px; }
+
+/* 結算 */
+.type-result { margin-top: 16px; padding: 20px 18px; border: 2px solid var(--yellow); background: rgba(255, 214, 10, 0.05); }
+.type-result h2 { font-size: 18px; font-weight: 900; }
+.type-result .type-stats { margin-top: 14px; }
+.type-misses { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.type-miss { padding: 3px 8px; border: 1px solid var(--line); font-size: 13px; font-weight: 800; font-family: Consolas, monospace; }
+.type-miss b { color: #ff6b6b; margin-left: 5px; }
+.type-result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.type-result-actions .auth-btn { text-decoration: none; }
+
+@media (max-width: 900px) {
+  .type-layout { grid-template-columns: 1fr; }
+  .type-side { position: static; }
+  .type-lyrics { max-height: 320px; }
+}

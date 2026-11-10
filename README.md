@@ -35,11 +35,11 @@ cd takeenglish && npm start            # http://localhost:3300
 
 等級定義只有一份:`src/plans.js`(用 paywall-kit)。後端用它擋功能,前端從 `/api/config` 拿同一份。
 
-| 等級 | 誰 | 搜尋結果 | 字幕 | 下載 |
-|---|---|---|---|---|
-| guest | 沒登入 | 前 `FREE_LIMIT` 筆 | 有 | 無 |
-| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 5) | 有 | 無 |
-| pro | 付費會員 | 全部 | 有 | 有 |
+| 等級 | 誰 | 搜尋結果 | 字幕 | 下載 | 聽歌練英打 |
+|---|---|---|---|---|---|
+| guest | 沒登入 | 前 `FREE_LIMIT` 筆 | 有 | 無 | 無(看得到歌單) |
+| free | 登入的免費會員 | 前 `MEMBER_LIMIT` 筆(預設 5) | 有 | 無 | 每首前 15 句 |
+| pro | 付費會員 | 全部 | 有 | 有 | 整首不限 |
 
 - 誰是 Pro 由 PayGate 說了算(`src/paygate.js`):每次用 email 問訂閱帳本,快取 60 秒,本站不存任何會員資料
 - PayGate 連不上:十分鐘內問過的沿用上次答案,其餘當免費會員,搜尋照常
@@ -148,6 +148,42 @@ npm test
 | ANNOTATE_URL / ANNOTATE_TOKEN | 標註引擎的位置與內部金鑰。沒設就不顯示逐句解析 |
 | PAYGATE_ALSO_PRODUCTS | 也算 Pro 的姊妹產品,逗號分隔 |
 | REELSCRIPT_URL / REELSCRIPT_APP_ID | 姊妹站網址與它的 LetMeUse app 代號 |
+
+## 聽歌練英打(/type)
+
+會員專屬。挑一首歌,YouTube MV 跟著播,一句一句照著打;那句唱完還沒打完,影片就停在那裡等你,打完才繼續。
+
+- 等級:訪客看得到歌單與 MV,但一句歌詞都拿不到(`src/plans.js` 的 `typing`);免費會員每首前 15 句(`typingLines`);Pro 整首不限。鎖住的句子後端不會送出去,F12 看不到多的
+- 畫面:左邊播放器 + 打字區 + 成績(WPM/正確率/完成句數),右邊整首歌詞(點一句就跳過去練)。打錯的字會顯示你實際打的那個,整句打完自動往下
+- 模式:慢速(1x/0.9x/0.75x/0.5x)、挖空(還沒打到的字用點蓋掉,逼自己聽)、句末暫停(可關)、中文(這首有翻譯才會出現)、重聽這句、從頭開始
+- 鍵盤:Tab 下一句、Shift+Tab 上一句、Esc 重聽這句
+- 練到最後一句出結算:用時、WPM、正確率、最常打錯的字
+- ⚠️ 收鍵盤的那個 `<input>` 要鋪滿打字區(透明)。縮成 1px 的隱藏框在 Chrome 會把游標卡在位置 0,打出來整句是反的 — 見 `public/type.css` 的註解
+
+### 加一首歌
+
+```
+node scripts/import-song.js <YouTube 連結或代號> [--level 中級] [--zh auto]
+```
+
+產生 `data/songs/<id>.json`。**這個資料夾不進版控**(歌詞是別人的著作,比照 `data/transcripts/`),所以要在跑站的那台主機上執行;不用重新部署,重開服務就會讀到(部署不會刪掉未進版控的檔案)。
+
+沒給 `--lyrics` 時用 yt-dlp 去抓英文字幕,順便:
+
+- 標題去掉 `[OFFICIAL VIDEO]`、`(Lyric Video)` 這類宣傳標記,`歌手: 歌名` 會拆開(頻道名常常是唱片公司)
+- 滾動式自動字幕的半句重複會併回一句;`♪`、`[Music]`、`(汽笛聲)` 這種不是歌詞的拿掉
+- 整首大寫的字幕(Believer)轉回正常大小寫 — 照著打要一直按 Shift,練的是小指不是英文
+- 不能嵌入播放的影片(`playable_in_embed=False`)直接擋下來,因為在站上根本練不了
+
+其他選項:`--id` `--title` `--artist` 自己指定,`--lyrics <.lrc/.srt/.vtt>` 用現成的歌詞檔(沒有 yt-dlp 時走這條),`--zh <檔案|auto>` 加中文翻譯(按時間重疊對回英文句),`--force` 覆蓋同名的歌。
+
+代號會先用 `src/songs.js` 的同一個規則檢查過才寫檔 — 不然檔案寫出來了、開機時卻被無聲跳過(日文歌名 slug 會空掉)。匯完建議開 `data/songs/<id>.json` 看一下:自動字幕的斷句品質看影片。
+
+### 這一頁「會員專屬」的範圍
+
+鎖的是**歌詞與練習**,不是影片本身:`/api/songs` 不需要登入(歌單要能被看到才有人想登入),所以 `youtubeId` 對訪客是公開的,MV 本來也是 YouTube 上公開的影片。真正擋住的是逐句歌詞 — 鎖住的句子後端不會送出去。
+
+播放器走 `www.youtube-nocookie.com`,訪客沒按播放之前不會被種追蹤 cookie;封面直接用 `i.ytimg.com`。這是站上唯一載入第三方資源的頁面,之後要加 CSP 的話,這頁需要 `script-src/frame-src https://www.youtube.com https://www.youtube-nocookie.com`、`img-src https://i.ytimg.com`。
 
 ## 之後再說
 

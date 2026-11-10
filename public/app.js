@@ -28,6 +28,7 @@ const PLAN_COPY = {
     study: '片段逐句解析',
     lessonModes: '單句重複・慢速・聽寫',
     summary: '重點整理與單字表',
+    typing: '聽歌練英打',
     lessonUpload: '貼自己的 YouTube 影片',
     download: '下載 mp4'
   },
@@ -407,6 +408,8 @@ function planRows(free, pro) {
     rows.push([PLAN_COPY.rows.summary, PLAN_COPY.preview, PLAN_COPY.full])
     rows.push([PLAN_COPY.rows.lessonUpload, f.lessonUpload ? yes : no, p.lessonUpload ? yes : no])
   }
+  // 聽歌練英打:訪客沒有,所以這一欄比的是免費會員能練幾句 vs Pro 整首
+  if (state.config.songs) rows.push([PLAN_COPY.rows.typing, count(f.typingLines, '句'), count(p.typingLines, '句')])
   rows.push([PLAN_COPY.rows.download, f.download ? yes : no, p.download ? yes : no])
   return rows
 }

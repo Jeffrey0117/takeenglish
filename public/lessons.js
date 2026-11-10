@@ -12,8 +12,6 @@ const TEXT = {
   notFound: '找不到這支影片',
   back: '← 所有影片',
   noVideo: '這支影片暫時不能播放,字幕照常可以看',
-  login: '免費登入',
-  upgrade: '升級 Pro',
   lockedLines: (n) => `後面還有 ${n} 句`,
   seeRest: '看完整支',
   modesTitle: '學習模式',
@@ -28,14 +26,10 @@ const TEXT = {
   words: '單字表',
   summaryMore: (points, quotes) =>
     [points ? `還有 ${points} 個重點` : '', quotes ? `${quotes} 句金句` : ''].filter(Boolean).join('、'),
-  // 撞牆時的升級視窗(只在這裡推銷)
+  // 撞牆時的升級視窗(只在這裡推銷;視窗的按鈕文字在 wall.js)
   wallTitle: '看完整支影片',
-  wallPrice: (price, cycle) => `NT$${Number(price).toLocaleString()} / ${cycle === 'yearly' ? '年' : '月'}`,
   wallPoints: ['完整影片與逐字稿', '單句重複、慢速、聽寫不受限', '完整重點整理與單字表', '片語搜尋看全部結果'],
   wallGuestHint: '先免費登入,可以多看幾句',
-  wallPlans: '看方案',
-  wallWorking: '前往付款頁…',
-  wallFailed: '付款服務暫時連不上,稍後再試',
   mine: '我的影片',
   mineHint: '貼上 YouTube 連結,自動轉成逐句字幕,每個字都能點',
   minePlaceholder: 'https://www.youtube.com/watch?v=…',
@@ -61,6 +55,14 @@ const { el, renderLine, closeTips } = window.teStudy
 // 只收我們自己的媒體路徑
 function mediaUrl(value) {
   return typeof value === 'string' && /^[/]lesson-media[/][0-9a-f-]{36}[/](video|thumb[.]jpg)$/.test(value) ? value : ''
+}
+
+// 頁面訊息。第一次 render 之後 #lesson-status 就被 replaceChildren 換掉了,不能假設它還在 —
+// 不然這裡自己會丟 TypeError,使用者看到的是半張畫面加上沒有任何訊息
+function status(message) {
+  const node = $('#lesson-status')
+  if (node) node.textContent = message
+  else $('#lesson-main').replaceChildren(el('p', 'watch-status', message))
 }
 
 async function getJson(url) {
@@ -89,7 +91,7 @@ async function renderList() {
   const res = await getJson(`/api/lessons?page=${page}`)
   const main = $('#lesson-main')
   if (!res.ok) {
-    $('#lesson-status').textContent = TEXT.error
+    status(TEXT.error)
     return
   }
   main.replaceChildren(el('h1', 'watch-title', TEXT.heading), el('p', 'lesson-sub', TEXT.sub))
@@ -205,78 +207,15 @@ function playFrom(video, seconds) {
   video.play().catch(() => {})
 }
 
-function loginButton() {
-  const b = el('button', 'auth-btn', TEXT.login)
-  b.type = 'button'
-  b.onclick = () => window.teSession.login()
-  return b
-}
-
-async function checkout(btn, note) {
-  btn.disabled = true
-  note.textContent = TEXT.wallWorking
-  try {
-    const token = window.teSession.getToken()
-    const res = await fetch('/api/billing/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: '{}'
-    })
-    const body = await res.json().catch(() => ({}))
-    const url = body.data && body.data.checkoutUrl
-    if (res.ok && typeof url === 'string' && /^https?:[/][/]/.test(url)) {
-      location.href = url
-      return
-    }
-    if (res.status === 409) {
-      location.reload()
-      return
-    }
-  } catch {
-    /* 落到下面的錯誤訊息 */
-  }
-  btn.disabled = false
-  note.textContent = TEXT.wallFailed
-}
-
-// 撞牆:影片播到被鎖的地方、或想看完整內容時,才跳出升級視窗
+// 撞牆:影片播到被鎖的地方、或想看完整內容時,才跳出升級視窗(視窗本身在 wall.js,跟聽歌練打共用)
 function showWall(lesson, { title = TEXT.wallTitle, points = TEXT.wallPoints } = {}) {
-  if (document.querySelector('.wall')) return
-  const billing = (window.teSession.config() || {}).billing || {}
-  const overlay = el('div', 'modal wall')
-  const card = el('div', 'modal-card')
-  const close = el('button', 'modal-close', '×')
-  close.type = 'button'
-  close.onclick = () => overlay.remove()
-  overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.remove()
-  }
-  card.append(close, el('p', 'modal-title', title))
-  if (lesson.lockedLines) card.append(el('p', 'wall-count', TEXT.lockedLines(lesson.lockedLines)))
-  if (billing.enabled && billing.plan) card.append(el('p', 'modal-price', TEXT.wallPrice(billing.plan.price, billing.plan.cycle)))
-  const list = el('ul', 'modal-list')
-  for (const point of points) list.append(el('li', '', point))
-  card.append(list)
-  const note = el('p', 'modal-note', '')
-  card.append(note)
-  if (!lesson.signedIn) {
-    note.textContent = TEXT.wallGuestHint
-    const login = loginButton()
-    login.onclick = () => {
-      overlay.remove()
-      window.teSession.login()
-    }
-    const plans = el('a', 'auth-btn quiet', TEXT.wallPlans)
-    plans.href = '/#plans'
-    card.append(login, plans)
-  } else {
-    const buy = el('button', 'auth-btn', TEXT.upgrade)
-    buy.type = 'button'
-    buy.onclick = () => checkout(buy, note)
-    card.append(buy)
-  }
-  overlay.append(card)
-  document.body.append(overlay)
+  window.teWall.show({
+    signedIn: lesson.signedIn,
+    title,
+    points,
+    count: lesson.lockedLines ? TEXT.lockedLines(lesson.lockedLines) : '',
+    guestHint: TEXT.wallGuestHint
+  })
 }
 
 // 重點整理:主旨、重點、金句、這支影片的單字表。非 Pro 看到的是預覽,後面接「還有幾個」
@@ -327,7 +266,7 @@ async function renderLesson(id, { mine = false } = {}) {
   const res = await getJson(mine ? `/api/my-lessons/${encodeURIComponent(id)}` : `/api/lessons/${encodeURIComponent(id)}`)
   const main = $('#lesson-main')
   if (!res.ok) {
-    $('#lesson-status').textContent = res.status === 404 || res.status === 401 ? TEXT.notFound : TEXT.error
+    status(res.status === 404 || res.status === 401 ? TEXT.notFound : TEXT.error)
     return
   }
   const lesson = res.data
@@ -505,7 +444,7 @@ async function init() {
     else if (id) await renderLesson(id)
     else await renderList()
   } catch {
-    $('#lesson-status').textContent = TEXT.error
+    status(TEXT.error)
   }
 }
 

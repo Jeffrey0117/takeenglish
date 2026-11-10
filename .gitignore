@@ -6,6 +6,7 @@ node_modules/
 .pm2-bg-ecosystem.json
 .deploy-state.json
 .pkg-hash
-# 執行期產生的資料:標註快取、整集台詞(字幕是別人的著作,只留在主機上)
+# 執行期產生的資料:標註快取、整集台詞、歌詞(都是別人的著作,只留在主機上)
 cache/
 data/transcripts/
+data/songs/
