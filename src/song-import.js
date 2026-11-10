@@ -11,6 +11,9 @@ const LRC_LINE = /^\s*((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+)\s*(.*)$/
 const LRC_STAMP = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g
 const MIN_LINE_SECONDS = 0.6
 const EN_LANGS = 'en-orig,en,en-US,en-GB'
+// 被 YouTube 擋到之後先停手。繼續猛打只會被擋更久
+const COOLDOWN_MS = 5 * 60_000
+const RATE_LIMITED = /HTTP Error 429|Too Many Requests|Sign in to confirm/i
 const ZH_LANGS = 'zh-Hant,zh-TW,zh-Hans,zh'
 // YouTube 標題常帶一堆宣傳標記:[OFFICIAL VIDEO]、(Lyric Video)、(from 某某電影原聲帶)
 const PROMO_BRACKET = /\s*\[[^\]]*\]/g
@@ -227,24 +230,38 @@ function attachTranslations(lines, zhCues) {
 function createYtDlp({
   bin = process.env.YTDLP_PATH || 'yt-dlp',
   timeoutMs = 90_000,
-  exec = execFile
+  exec = execFile,
+  now = Date.now
 } = {}) {
   let queue = Promise.resolve()
+  // 被 YouTube 擋過之後的冷卻。繼續猛打只會被擋更久,而且每次都要等 yt-dlp 跑完才知道
+  let blockedUntil = 0
 
   function runNow(args) {
     return new Promise((resolve, reject) => {
       exec(bin, args, { encoding: 'utf8', windowsHide: true, timeout: timeoutMs, maxBuffer: 8 << 20 }, (err, stdout, stderr) => {
-        if (!err) return resolve(String(stdout || ''))
-        const detail = String((stderr || err.message) || '')
+        const out = String(stdout || '')
+        const detail = String(stderr || '')
+        // ⚠️ yt-dlp 抓不到字幕時不一定是非零離開 —— 它會把 429 印在 stderr 然後正常結束。
+        // 只看離開碼的話,我們會把「被擋下來」講成「這支影片沒有字幕」(使用者被這個騙了好幾次)
+        if (RATE_LIMITED.test(detail) || (err && RATE_LIMITED.test(String(err.message || '')))) {
+          blockedUntil = now() + COOLDOWN_MS
+          return reject(importError('rate_limited', 'YouTube 暫時擋下請求'))
+        }
+        if (!err) return resolve({ stdout: out, stderr: detail })
         if (err.code === 'ENOENT') return reject(importError('ytdlp_missing', `找不到 yt-dlp(${bin})`))
-        if (/HTTP Error 429|Too Many Requests/i.test(detail)) return reject(importError('rate_limited', 'YouTube 暫時擋下請求'))
-        return reject(importError('ytdlp_failed', detail.slice(0, 400)))
+        return reject(importError('ytdlp_failed', (detail || err.message).slice(0, 400)))
       })
     })
   }
 
   // 排隊,前一支失敗不影響下一支
   function run(args) {
+    const left = blockedUntil - now()
+    if (left > 0) {
+      const minutes = Math.ceil(left / 60_000)
+      return Promise.reject(importError('rate_limited', `YouTube 還在擋,大約 ${minutes} 分鐘後再試`))
+    }
     const result = queue.then(() => runNow(args))
     queue = result.then(
       () => {},
@@ -255,14 +272,61 @@ function createYtDlp({
 
   const watchUrl = (videoId) => `https://www.youtube.com/watch?v=${videoId}`
 
+  // metadata 和字幕一次問完。
+  // 分成兩次呼叫等於每匯入一首就打 YouTube 兩輪,被擋的機率直接翻倍 —— 而被擋之後
+  // 連「這支到底有沒有字幕」都查不到,只能給使用者一個看起來像它沒字幕的錯誤。
+  async function fetchSong(videoId, langs) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-song-'))
+    try {
+      const { stdout, stderr } = await run([
+        '--skip-download',
+        '--write-subs',
+        '--write-auto-subs',
+        '--sub-langs',
+        langs,
+        '--sub-format',
+        'vtt',
+        '--no-warnings',
+        // ⚠️ --print 會讓 yt-dlp 進入 simulate(只印不寫檔),字幕就永遠抓不到。
+        // 這個組合一定要補 --no-simulate
+        '--no-simulate',
+        // 慢一點打,被擋的機率低很多
+        '--sleep-requests',
+        '1',
+        // 同一趟把影片資訊印出來,順便問「有沒有英文字幕」—— 這樣才分得出
+        // 「這支真的沒有」和「有但我們沒抓到」
+        '--print',
+        '%(title)s|||%(channel)s|||%(playable_in_embed)s|||%(automatic_captions.en.0.ext)s|||%(subtitles.en.0.ext)s',
+        '-o',
+        path.join(dir, 'sub'),
+        '--',
+        watchUrl(videoId)
+      ])
+      const [title, channel, embeddable, autoEn, manualEn] = stdout.trim().split('|||')
+      const file = fs.readdirSync(dir).find((name) => name.endsWith('.vtt'))
+      return {
+        meta: {
+          title: title || '',
+          channel: channel || '',
+          embeddable: embeddable !== 'False',
+          // NA = yt-dlp 說這支沒有這個語言的字幕
+          hasEnglish: (autoEn && autoEn !== 'NA') || (manualEn && manualEn !== 'NA')
+        },
+        cues: file ? parseCues(fs.readFileSync(path.join(dir, file), 'utf8')) : [],
+        stderr
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
   return {
     bin,
-    async meta(videoId) {
-      const printed = await run(['--no-warnings', '--print', '%(title)s|||%(channel)s|||%(playable_in_embed)s', '--', watchUrl(videoId)])
-      const [title, channel, embeddable] = printed.trim().split('|||')
-      return { title: title || '', channel: channel || '', embeddable: embeddable !== 'False' }
+    fetchSong,
+    get blockedFor() {
+      return Math.max(blockedUntil - now(), 0)
     },
-    // 下載到暫存資料夾,挑第一個讀得到的 .vtt;沒有字幕就回空陣列
+    // 中文字幕是額外要的,維持獨立一次(預設不開)
     async subtitles(videoId, langs) {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-song-'))
       try {
@@ -285,6 +349,10 @@ function createYtDlp({
       } finally {
         fs.rmSync(dir, { recursive: true, force: true })
       }
+    },
+    async meta(videoId) {
+      const { meta } = await fetchSong(videoId, EN_LANGS)
+      return meta
     }
   }
 }
@@ -313,10 +381,15 @@ function buildSong({ videoId, meta = {}, cues, zhCues = [], id: wantedId = '', t
 async function importFromYouTube(url, { ytdlp = createYtDlp(), zh = false, level = '' } = {}) {
   const videoId = videoIdOf(url)
   if (!videoId) throw importError('bad_url', '這不是 YouTube 影片連結')
-  const meta = await ytdlp.meta(videoId)
+  // 一次把影片資訊和字幕都拿回來
+  const { meta, cues } = await ytdlp.fetchSong(videoId, EN_LANGS)
   if (!meta.embeddable) throw importError('not_embeddable', '這支影片不能嵌入播放')
-  const cues = await ytdlp.subtitles(videoId, EN_LANGS)
-  if (cues.length === 0) throw importError('no_subtitles', '這支影片沒有英文字幕')
+  if (cues.length === 0) {
+    // 分清楚是哪一種。以前兩種都說「沒有英文字幕」,使用者就以為是影片的問題,
+    // 換一支、再換一支,其實是我們這邊抓不到
+    if (meta.hasEnglish) throw importError('subs_fetch_failed', '這支影片有英文字幕,但這次沒抓到 — 稍後再試一次')
+    throw importError('no_subtitles', '這支影片沒有英文字幕')
+  }
   const zhCues = zh ? await ytdlp.subtitles(videoId, ZH_LANGS).catch(() => []) : []
   return buildSong({ videoId, meta, cues, zhCues, level })
 }

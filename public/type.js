@@ -64,7 +64,8 @@ const TEXT = {
   mineErrors: {
     bad_url: '這不是 YouTube 影片連結',
     not_embeddable: '這支影片不給嵌入播放,練不了 — 換一支',
-    no_subtitles: '這支影片沒有英文字幕,抓不到歌詞',
+    no_subtitles: '這支影片沒有英文字幕(很多官方 MV 都沒有)— 找同一首歌的 lyrics 影片通常有',
+    subs_fetch_failed: '這支有字幕,但這次沒抓到 — 等一下再按一次就好,不用換影片',
     rate_limited: 'YouTube 暫時擋下請求,過幾分鐘再試',
     daily_limit: '今天加的額度用完了',
     library_full: '我的歌放滿了,先移除幾首',
@@ -239,7 +240,9 @@ async function mineSection() {
         location.href = `/type?mine=${encodeURIComponent(body.data.id)}`
         return
       }
-      note.textContent = TEXT.mineErrors[body.error] || TEXT.mineErrors.default
+      // 被擋下來時伺服器會說還要等多久,那比罐頭訊息有用
+      note.textContent =
+        body.error === 'rate_limited' && body.detail ? body.detail : TEXT.mineErrors[body.error] || TEXT.mineErrors.default
     } catch {
       note.textContent = TEXT.mineErrors.default
     } finally {

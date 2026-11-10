@@ -126,25 +126,28 @@ test('中文字幕按時間重疊對回英文句', () => {
 })
 
 // 假的 yt-dlp:不會真的打 YouTube
-function fakeYtDlp({ title = 'twenty one pilots: Heathens [OFFICIAL VIDEO]', channel = 'Fueled By Ramen', embeddable = true, en = 'ok', zh = null } = {}) {
+function fakeYtDlp({ title = 'twenty one pilots: Heathens [OFFICIAL VIDEO]', channel = 'Fueled By Ramen', embeddable = true, en = 'ok', hasEnglish = null, zh = null } = {}) {
   const calls = []
+  const CUES = [
+    { start: 20.8, end: 25.4, text: '♪ All my friends are heathens, take it slow ♪' },
+    { start: 25.4, end: 26.4, text: '(gentle music)' },
+    { start: 26.4, end: 31.3, text: '♪ Wait for them to ask you who you know ♪' }
+  ]
+  const meta = () => ({ title, channel, embeddable, hasEnglish: hasEnglish === null ? en !== 'none' : hasEnglish })
   return {
     calls,
+    async fetchSong() {
+      calls.push('fetchSong')
+      return { meta: meta(), cues: en === 'none' ? [] : CUES, stderr: '' }
+    },
     async meta() {
       calls.push('meta')
-      return { title, channel, embeddable }
+      return meta()
     },
     async subtitles(videoId, langs) {
       calls.push(`subs:${langs}`)
-      if (langs.startsWith('zh')) {
-        return zh || []
-      }
-      if (en === 'none') return []
-      return [
-        { start: 20.8, end: 25.4, text: '\u266a All my friends are heathens, take it slow \u266a' },
-        { start: 25.4, end: 26.4, text: '(gentle music)' },
-        { start: 26.4, end: 31.3, text: '\u266a Wait for them to ask you who you know \u266a' }
-      ]
+      if (langs.startsWith('zh')) return zh || []
+      return en === 'none' ? [] : CUES
     }
   }
 }
@@ -298,4 +301,76 @@ test('一直沒有標點的長句會在長度上限斷開,不會變成一行三�
   const lines = reflow([runOn, ...PROSE])
   assert.ok(lines.length > 3, '那一長串要被切成好幾行')
   for (const line of lines) assert.ok(line.text.length <= 95, `這行太長:${line.text.length}`)
+})
+
+// ---- 被 YouTube 擋下來的時候,別講成「這支影片沒字幕」 ----
+
+test('有英文字幕卻抓不到 → 說「沒抓到」,不是「沒有字幕」', async () => {
+  // 使用者被這個騙了好幾次:一直換影片,其實是我們這邊抓不到
+  await assert.rejects(
+    () => importFromYouTube('UprcpdwuwCg', { ytdlp: fakeYtDlp({ en: 'none', hasEnglish: true }) }),
+    (err) => err.code === 'subs_fetch_failed'
+  )
+})
+
+test('真的沒有英文字幕才說沒有', async () => {
+  await assert.rejects(
+    () => importFromYouTube('UprcpdwuwCg', { ytdlp: fakeYtDlp({ en: 'none', hasEnglish: false }) }),
+    (err) => err.code === 'no_subtitles'
+  )
+})
+
+test('一支歌只打 YouTube 一輪(以前要兩輪,被擋的機率翻倍)', async () => {
+  const ytdlp = fakeYtDlp()
+  await importFromYouTube('UprcpdwuwCg', { ytdlp })
+  assert.deepEqual(ytdlp.calls, ['fetchSong'])
+})
+
+// yt-dlp 把 429 印在 stderr 之後「正常結束」是常態 —— 只看離開碼就會誤判
+test('429 印在 stderr 但離開碼是 0:照樣要當成被擋', async () => {
+  const ytdlp = createYtDlp({
+    exec: (bin, args, opts, cb) => cb(null, '', 'ERROR: Unable to download video subtitles: HTTP Error 429: Too Many Requests')
+  })
+  await assert.rejects(() => ytdlp.fetchSong('UprcpdwuwCg', 'en'), (err) => err.code === 'rate_limited')
+})
+
+test('被擋過之後進入冷卻:接下來直接回「還要等幾分鐘」,不再去打 YouTube', async () => {
+  const clock = { t: 1_000_000 }
+  let runs = 0
+  const ytdlp = createYtDlp({
+    now: () => clock.t,
+    exec: (bin, args, opts, cb) => {
+      runs += 1
+      cb(null, '', 'HTTP Error 429: Too Many Requests')
+    }
+  })
+  await assert.rejects(() => ytdlp.fetchSong('UprcpdwuwCg', 'en'), (err) => err.code === 'rate_limited')
+  assert.equal(runs, 1)
+
+  await assert.rejects(
+    () => ytdlp.fetchSong('UprcpdwuwCg', 'en'),
+    (err) => err.code === 'rate_limited' && /分鐘/.test(err.message)
+  )
+  assert.equal(runs, 1, '冷卻期間不該再打 YouTube')
+
+  // 冷卻過了就能再試
+  clock.t += 6 * 60_000
+  assert.equal(ytdlp.blockedFor, 0)
+  await assert.rejects(() => ytdlp.fetchSong('UprcpdwuwCg', 'en'))
+  assert.equal(runs, 2)
+})
+
+test('--print 一定要配 --no-simulate,不然 yt-dlp 只印不寫檔,字幕永遠是空的', () => {
+  let seen = []
+  const ytdlp = createYtDlp({
+    exec: (bin, args, opts, cb) => {
+      seen = args
+      cb(null, 'T|||C|||True|||vtt|||NA', '')
+    }
+  })
+  return ytdlp.fetchSong('UprcpdwuwCg', 'en').then(() => {
+    assert.ok(seen.includes('--print'))
+    assert.ok(seen.includes('--no-simulate'), '少了 --no-simulate 就抓不到任何字幕')
+    assert.ok(seen.includes('--skip-download'), '只要字幕,不要影片')
+  })
 })
