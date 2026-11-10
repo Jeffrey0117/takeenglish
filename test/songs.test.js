@@ -7,6 +7,7 @@ const { createApp } = require('../src/app')
 const { createAuth } = require('../src/auth')
 const { createJwksCache } = require('../src/jwks')
 const { createSongLibrary, createUserSongs } = require('../src/songs')
+const { createLedger } = require('../src/ledger')
 const { createPaygate } = require('../src/paygate')
 const { createTestKeys, makeEs256Token, fakeJwksFetch, futureExp, TEST_TOKENS } = require('./helpers')
 
@@ -49,7 +50,7 @@ function fakePaygate() {
   })
 }
 
-function startApp(dir, { importer, mineDir } = {}) {
+function startApp(dir, { importer, mineDir, ledger } = {}) {
   const { fetchImpl } = fakeJwksFetch([KEYS.jwk])
   const app = createApp({
     clipcafe: { search: async () => ({ total: 0, results: [] }) },
@@ -58,6 +59,8 @@ function startApp(dir, { importer, mineDir } = {}) {
     paygate: fakePaygate(),
     songs: createSongLibrary({ dir, onError: () => {} }),
     ...(mineDir ? { mySongs: createUserSongs({ dir: mineDir }) } : {}),
+    // 一律給測試專用的帳本:不給的話會用到真的 data/ledger,測試之間互相影響
+    ledger: ledger || createLedger({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'te-ledger-test-')) }),
     // 一律明寫:預設值是真的會去跑 yt-dlp 的那一個,測試裡絕對不要拿到它
     songImporter: importer || null
   })
@@ -328,7 +331,7 @@ test('別人加的歌看不到也練不到', async () => {
   }
 })
 
-test('免費會員一天三支,第四支擋下來(而且不會白跑一次 yt-dlp)', async () => {
+test('免費會員一個月三首,第四首擋下來(而且不會白跑一次 yt-dlp)', async () => {
   const { server, base, importer } = startWithImport()
   try {
     for (let i = 1; i <= 3; i += 1) {
@@ -337,14 +340,14 @@ test('免費會員一天三支,第四支擋下來(而且不會白跑一次 yt-dl
     }
     const fourth = await postJson(base, '/api/my-songs', bearer('free@example.com'), { url: 'https://youtu.be/vid4aaaaaaa' })
     assert.equal(fourth.status, 429)
-    assert.equal(fourth.body.error, 'daily_limit')
+    assert.equal(fourth.body.error, 'monthly_limit')
     assert.equal(importer.calls.length, 3)
   } finally {
     server.close()
   }
 })
 
-test('Pro 不限支數', async () => {
+test('Pro 一個月 30 首(免費是 3 首)', async () => {
   const { server, base } = startWithImport()
   try {
     for (let i = 1; i <= 5; i += 1) {
@@ -352,7 +355,8 @@ test('Pro 不限支數', async () => {
       assert.equal(res.status, 200)
     }
     const list = await get(base, '/api/my-songs', bearer(PRO_EMAIL))
-    assert.equal(list.data.limit, null)
+    assert.equal(list.data.limit, 30)
+    assert.equal(list.data.used, 5)
     assert.equal(list.data.items.length, 5)
   } finally {
     server.close()

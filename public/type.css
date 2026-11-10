@@ -97,6 +97,8 @@
 .type-lyric.revealed::after { content: " …"; color: #7fd1ff; }
 .type-lock { padding: 22px 14px; text-align: center; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 214, 10, 0.03), rgba(255, 214, 10, 0.08)); }
 .type-lock .lock-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+.type-lock .auth-btn + .auth-btn { margin-top: 8px; }
+.type-lock .lock-note { margin-top: 8px; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.5; }
 
 /* 會員牆(整頁的) */
 .type-gate { margin-top: 18px; padding: 26px 20px; border: 2px solid var(--yellow); background: rgba(255, 214, 10, 0.05); text-align: center; }

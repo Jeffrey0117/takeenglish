@@ -17,6 +17,8 @@ function createPaygate({
   token,
   product = 'takeenglish',
   planId = 'takeenglish:pro:monthly',
+  // Pro Plus 的方案代號。沒設就沒有 Pro Plus(PayGate 自己回 tier: 'pro_plus' 時仍然認)
+  plusPlanId = '',
   // 一張通行證:這些姊妹產品的有效訂閱也算 Pro(例如 reelscript)
   alsoProducts = [],
   fetchImpl = globalThis.fetch,
@@ -55,6 +57,12 @@ function createPaygate({
     users.set(email, entry)
   }
 
+  // PayGate 的 /api/subscription/check 在有效訂閱時會回 plan_id 與 tier
+  function isPlus(data) {
+    if (data.tier === 'pro_plus') return true
+    return Boolean(plusPlanId) && data.plan_id === plusPlanId
+  }
+
   async function lookup(key) {
     const previous = users.get(key)
     try {
@@ -75,7 +83,9 @@ function createPaygate({
           continue
         }
         if (data.active) {
-          value = { tier: 'pro', activeUntil: data.end_date || null, via: name }
+          // 只有本站自己的訂閱分得出 Pro / Pro Plus;姊妹產品的通行證一律算 Pro
+          const tier = name === product && isPlus(data) ? 'pro_plus' : 'pro'
+          value = { tier, activeUntil: data.end_date || null, via: name }
           break
         }
       }

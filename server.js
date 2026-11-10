@@ -35,6 +35,7 @@ const app = createApp({
     baseUrl: process.env.PAYGATE_URL,
     token: process.env.PAYGATE_TOKEN,
     planId: process.env.PRO_PLAN_ID || 'takeenglish:pro:monthly',
+    plusPlanId: process.env.PRO_PLUS_PLAN_ID || '',
     alsoProducts: (process.env.PAYGATE_ALSO_PRODUCTS || '').split(',').map((name) => name.trim()).filter(Boolean)
   }),
   annotator: createAnnotator({

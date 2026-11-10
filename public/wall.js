@@ -49,7 +49,9 @@
   }
 
   // 同時只開一個。signedIn=false 的人先推登入(免費的那一步),登入過的才推付款
-  function show({ signedIn = false, title = '', points = [], count = '', guestHint = TEXT.guestHint } = {}) {
+  // extra = 升級以外的另一條路(例如用 credit 先解鎖這一首)。
+  // { label, onClick(button, note) };沒傳就完全不出現
+  function show({ signedIn = false, title = '', points = [], count = '', guestHint = TEXT.guestHint, extra = null } = {}) {
     if (document.querySelector('.wall')) return
     const billing = (window.teSession.config() || {}).billing || {}
     const overlay = el('div', 'modal wall')
@@ -100,6 +102,12 @@
       buy.type = 'button'
       buy.onclick = () => checkout(buy, note)
       card.append(buy)
+      if (extra && extra.label) {
+        const other = el('button', 'auth-btn quiet', extra.label)
+        other.type = 'button'
+        other.onclick = () => extra.onClick(other, note)
+        card.append(other)
+      }
     }
     overlay.append(card)
     document.body.append(overlay)

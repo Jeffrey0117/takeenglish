@@ -16,6 +16,7 @@ const { createDictionary } = require('./dictionary')
 const { createLessonSource, mountLessonRoutes } = require('./lessons')
 const { ownerOf, createSongLibrary, createUserSongs, mountSongRoutes } = require('./songs')
 const { createScores } = require('./scores')
+const { createLedger } = require('./ledger')
 const { mountScoreRoutes } = require('./score-routes')
 const { createYtDlp, importFromYouTube } = require('./song-import')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
@@ -69,7 +70,8 @@ function createApp({
   tokens,
   freeLimit = 3,
   memberLimit = 0,
-  plans = createPlans({ guestLimit: freeLimit, memberLimit }),
+  // Pro Plus 有設方案代號才畫在方案頁上(沒價格就不要賣)
+  plans = createPlans({ guestLimit: freeLimit, memberLimit, plusListed: Boolean(process.env.PRO_PLUS_PLAN_ID) }),
   paygate = createPaygate(),
   publicUrl = '',
   strictPlayback = false,
@@ -83,6 +85,8 @@ function createApp({
   mySongs = createUserSongs({ dir: path.join(__dirname, '..', 'data', 'songs', 'users') }),
   // 練打成績:個人歷史 + 每首歌排行榜(純檔案,部署不會動到未追蹤的 data/)
   scores = createScores({ dir: path.join(__dirname, '..', 'data', 'scores') }),
+  // credit(每天)與加歌數(每月)的帳本
+  ledger = createLedger({ dir: path.join(__dirname, '..', 'data', 'ledger') }),
   // 會員貼連結加歌:要有 yt-dlp 才開放(SONG_IMPORT=0 可以關掉)
   songImporter = process.env.SONG_IMPORT === '0'
     ? null
@@ -243,10 +247,10 @@ function createApp({
     importer: songImporter,
     // 挑難字要靠離線字典(level 1 最常用 … 5 少見)
     dictionary,
-    // 「一天能加幾支」跟逐句解析共用同一套每日計數
-    usage: createDailyUsage()
+    // 「一個月能加幾首」要跨重啟記住(重新部署不該把額度補滿)
+    ledger
   })
-  mountScoreRoutes(app, { viewer, songs, mySongs, scores, limiter, clientIp, ownerOf })
+  mountScoreRoutes(app, { viewer, songs, mySongs, scores, plans, ledger, limiter, clientIp, ownerOf })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })

@@ -78,6 +78,18 @@ test('排行榜不出 email、不出使用者代號 — 沒暱稱就把信箱遮
   assert.equal(JSON.stringify(row).includes(OWNER), false)
 })
 
+test('暱稱本身就是 email 也要遮 — LetMeUse 的 Google 登入沒名字時會把 displayName 設成信箱', () => {
+  const scores = createScores({ dir: tmp() })
+  scores.add(OWNER, RUN, { name: 'someone@example.com', email: 'someone@example.com' })
+  const row = scores.board('heathens')[0]
+  assert.equal(row.name, 'so***')
+  assert.equal(row.name.includes('@'), false)
+  // 很長的信箱被截成 24 字也不行 — 截斷後的 local part 照樣是個人資料
+  const other = createScores({ dir: tmp() })
+  other.add(OWNER, RUN, { name: 'averyveryverylongaddress@example.com', email: 'x@y.com' })
+  assert.equal(other.board('heathens')[0].name, 'av***')
+})
+
 test('自己貼的歌只進個人歷史,不進公開排行榜(別人沒有那首)', () => {
   const scores = createScores({ dir: tmp() })
   scores.add(OWNER, { ...RUN, songId: 'wifey', own: true }, { name: 'Jeff' })

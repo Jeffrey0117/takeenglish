@@ -104,7 +104,9 @@ const OWNER_PATTERN = /^te-[A-Za-z0-9_-]{1,80}$/
 // 一個人一把鑰匙。用 sub(LetMeUse 的使用者代號)而不是 email:換了信箱還是同一個人。
 // ⚠️ 成績、credit 也用這把鑰匙 — 算法改了會讓所有人的資料對不上,要改就一起改
 const ownerOf = (user) => `te-${String((user && user.sub) || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)}`
-const MAX_PER_USER = 50
+// 一個人最多存幾首。真正的牆是「一個月能加幾首」(plans 的 songUpload),
+// 這個數字只是磁碟保險 —— 一首歌詞 JSON 大約 10-40KB
+const MAX_PER_USER = 200
 
 function createUserSongs({ dir } = {}) {
   const ok = (owner, id) => Boolean(dir) && OWNER_PATTERN.test(owner) && ID_PATTERN.test(id)
@@ -161,7 +163,18 @@ function createUserSongs({ dir } = {}) {
 
 // 誰能練由 plans 決定:typing = 進不進得去(訪客不行),typingLines = 這首歌開放幾句。
 // 鎖住的句子連內容都不送出去 — 跟搜尋結果一樣,F12 看不到多的。
-function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs = createUserSongs(), importer = null, usage = null, dictionary = null }) {
+function mountSongRoutes(app, {
+  songs,
+  viewer,
+  plans,
+  limiter,
+  clientIp,
+  mySongs = createUserSongs(),
+  importer = null,
+  // 「一個月能加幾首」要跨重啟記住 → 走 src/ledger.js 的月帳本,不是記憶體計數
+  ledger = null,
+  dictionary = null
+}) {
   // 挖空候選算一次就好(同一個 song 物件會重複拿到);會員自己的歌每次重讀,就每次算
   const blankCache = new WeakMap()
   function blanksOf(song) {
@@ -175,11 +188,24 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     return true
   }
 
-  // own = 會員自己貼連結加進來的歌。他自己的東西不切句數(牆擺在「一天能加幾支」,
+  // 今天還剩幾點 credit。limit = null 表示不限(付費會員)
+  function creditsOf(user, tier) {
+    const limit = plans.quota(tier, 'typingCredits')
+    if (!user || !ledger || limit === null) return { used: 0, limit }
+    return { used: ledger.check(ownerOf(user), 'credits', '', limit).used, limit }
+  }
+
+  // 今天有沒有用 credit 解鎖過這一首。重新整理要還原,不然等於點數白花
+  function unlockedBy(user, songId) {
+    return Boolean(user && ledger && ledger.has(ownerOf(user), 'credits', `song:${songId}`))
+  }
+
+  // own = 會員自己貼連結加進來的歌。他自己的東西不切句數(牆擺在「一個月能加幾首」,
   // 不是「自己加的歌只能練一半」—— 跟影片學習的「我的影片」同一個規矩)
-  function present(song, user, tier, own = false) {
+  // unlocked = 今天花了 1 點 credit 把這一首整首打開
+  function present(song, user, tier, { own = false, unlocked = false } = {}) {
     const typing = plans.can(tier, 'typing')
-    const limit = own ? null : typing ? plans.quota(tier, 'typingLines') : 0
+    const limit = own || (typing && unlocked) ? null : typing ? plans.quota(tier, 'typingLines') : 0
     // null = 不限,數字 = 前幾句,其他(例如未知的等級讓 paywall-kit 回 false)一律一句都不給
     const visible = limit === null ? song.lines : typeof limit === 'number' ? song.lines.slice(0, limit) : []
     const lastVisible = visible[visible.length - 1]
@@ -195,6 +221,8 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
       signedIn: Boolean(user),
       typing: own ? true : typing,
       own,
+      unlocked: Boolean(unlocked),
+      credits: creditsOf(user, tier),
       totalLines: song.lines.length,
       lockedLines: song.lines.length - visible.length,
       // 影片播到這裡就是牆。取「最後一句開放的句子唱完」而不是「第一句鎖住的句子開始」—
@@ -218,7 +246,27 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     if (!song) return fail(res, 404, 'song_not_found')
     const { user, tier } = await viewer(req)
     res.set('Cache-Control', 'no-store')
-    return res.json({ success: true, data: present(song, user, tier) })
+    return res.json({ success: true, data: present(song, user, tier, { unlocked: unlockedBy(user, song.id) }) })
+  })
+
+  // 花 1 點 credit 把這一首整首打開(當天有效)。免費會員每天 2 點 —— 這是
+  // 「先讓他嚐到整首的味道」的入口,不是永久解鎖
+  app.post('/api/songs/:id/unlock', async (req, res) => {
+    const { user, tier } = await viewer(req)
+    if (!user) return fail(res, 401, 'unauthorized')
+    if (tooMany(req, res, 'song-unlock', 30)) return
+    const song = songs.get(req.params.id)
+    if (!song) return fail(res, 404, 'song_not_found')
+    if (!plans.can(tier, 'typing')) return fail(res, 402, 'upgrade_required')
+    const limit = plans.quota(tier, 'typingCredits')
+    const owner = ownerOf(user)
+    // 同一首同一天重複解鎖不重複扣(ledger 自己照 item 去重)
+    const ticket = ledger ? ledger.spend(owner, 'credits', `song:${song.id}`, limit) : { allowed: true, used: 0, limit }
+    res.set('Cache-Control', 'no-store')
+    if (!ticket.allowed) {
+      return res.status(402).json({ success: false, error: 'no_credits', used: ticket.used, limit: ticket.limit })
+    }
+    return res.json({ success: true, data: present(song, user, tier, { unlocked: true }) })
   })
 
   // ---- 會員自己貼 YouTube 連結加的歌 ----
@@ -245,7 +293,7 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     if (tooMany(req, res, 'my-songs', 120)) return
     const limit = plans.quota(tier, 'songUpload')
     const owner = ownerOf(user)
-    const quota = usage ? usage.check(user.sub, '', limit) : { used: 0, limit }
+    const quota = ledger ? ledger.check(owner, 'uploads', '', limit, { period: 'month' }) : { used: 0, limit }
     res.set('Cache-Control', 'no-store')
     return res.json({
       success: true,
@@ -274,11 +322,11 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     const owner = ownerOf(user)
     if (mySongs.count(owner) >= mySongs.full) return fail(res, 409, 'library_full')
 
-    // 先看額度夠不夠(真的加成功才扣)
-    const ticket = usage ? usage.check(user.sub, url, limit) : { allowed: true, used: 0, limit }
+    // 先看額度夠不夠(真的加成功才扣)。同一個網址重複加不重複扣 —— 重抓一次字幕是合理的意圖
+    const ticket = ledger ? ledger.check(owner, 'uploads', url, limit, { period: 'month' }) : { allowed: true, used: 0, limit }
     if (!ticket.allowed) {
       res.set('Cache-Control', 'no-store')
-      return res.status(429).json({ success: false, error: 'daily_limit', limit: ticket.limit })
+      return res.status(429).json({ success: false, error: 'monthly_limit', limit: ticket.limit })
     }
 
     let song
@@ -298,7 +346,7 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
 
     const saved = mySongs.save(owner, song)
     if (!saved) return fail(res, 500, 'save_failed')
-    if (usage) usage.consume(user.sub, url, limit)
+    if (ledger) ledger.spend(owner, 'uploads', url, limit, { period: 'month' })
     res.set('Cache-Control', 'no-store')
     return res.json({ success: true, data: summaryOf(saved) })
   })
@@ -311,7 +359,7 @@ function mountSongRoutes(app, { songs, viewer, plans, limiter, clientIp, mySongs
     const song = mySongs.get(ownerOf(user), req.params.id)
     if (!song) return fail(res, 404, 'song_not_found')
     res.set('Cache-Control', 'no-store')
-    return res.json({ success: true, data: present(song, user, tier, true) })
+    return res.json({ success: true, data: present(song, user, tier, { own: true }) })
   })
 
   app.post('/api/my-songs/:id/delete', async (req, res) => {

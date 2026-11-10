@@ -22,11 +22,16 @@ function num(value) {
   return Number.isFinite(n) ? n : null
 }
 
-// 排行榜上要顯示的名字。email 絕對不能整個露出來 —— 那是排行榜最容易外洩個資的地方
+// 排行榜上要顯示的名字。email 絕對不能整個露出來 —— 那是排行榜最容易外洩個資的地方。
+//
+// ⚠️ 不能只看 email 欄位:LetMeUse 的 Google / GitHub 登入在對方沒有顯示名稱時,
+// 會直接把 displayName 設成信箱(oauth.ts 的 `data.name ?? data.email`),而密碼註冊的
+// 「顯示名稱」是自由輸入,很多人就填信箱。所以暱稱裡有 @ 就一律當信箱遮掉。
+// 截斷要放在判斷之後 —— 先截的話長信箱會被切成沒有 @ 的 local part 直接露出去
 function displayName({ name = '', email = '' } = {}) {
-  const nick = text(name, 24)
-  if (nick) return nick
-  const local = text(email, 64).split('@')[0]
+  const nick = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim() : ''
+  if (nick && !nick.includes('@')) return nick.slice(0, 24)
+  const local = text(nick.includes('@') ? nick : email, 64).split('@')[0]
   if (local.length >= 2) return `${local.slice(0, 2)}***`
   if (local.length === 1) return `${local}***`
   return '匿名'
@@ -73,7 +78,13 @@ function normalizeRun(raw, now) {
 
 // 一輪一輪的成績:個人歷史放 users/<owner>.json,每首歌的排行榜放 songs/<id>.json。
 // 跟歌庫一樣是純檔案 —— 不需要資料庫,部署不會刪未追蹤的檔案,所以上線後還在。
-function createScores({ dir, now = Date.now, maxHistory = MAX_HISTORY, boardSize = BOARD_SIZE } = {}) {
+function createScores({
+  dir,
+  now = Date.now,
+  maxHistory = MAX_HISTORY,
+  boardSize = BOARD_SIZE,
+  onError = (err) => process.stderr.write(`[scores] ${err.message}\n`)
+} = {}) {
   const userFile = (owner) => path.join(dir, 'users', `${owner}.json`)
   const songFile = (songId) => path.join(dir, 'songs', `${songId}.json`)
 
@@ -88,22 +99,22 @@ function createScores({ dir, now = Date.now, maxHistory = MAX_HISTORY, boardSize
   }
 
   // 先寫暫存再 rename:中途掛掉不會留下半個 JSON 把使用者的歷史弄壞
+  // ⚠️ 單一程序才成立:add() 全程同步,所以讀-改-寫在這個行程裡是原子的。
+  // PM2 改成 cluster 模式的話,排行榜更新會變成覆蓋式競爭(暫存檔名也只用 pid 區分)
   function writeJson(file, value) {
+    // 檔名都已經過 ID/OWNER 正規式,這一行是最後一道保險:寫出去的位置一定在 dir 底下
+    if (!path.resolve(file).startsWith(path.resolve(dir))) throw new Error('refusing to write outside the scores dir')
     fs.mkdirSync(path.dirname(file), { recursive: true })
     const tmp = `${file}.${process.pid}.tmp`
     fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`)
     fs.renameSync(tmp, file)
   }
 
-  const runsOf = (owner) => {
-    const data = readJson(userFile(owner), { runs: [] })
-    return Array.isArray(data.runs) ? data.runs : []
-  }
+  // 只收長得像一筆成績的元素:檔案被手改壞的時候,bests() 不該因為一個 null 就 500
+  const sane = (list) => (Array.isArray(list) ? list : []).filter((row) => row && typeof row === 'object')
 
-  const rowsOf = (songId) => {
-    const data = readJson(songFile(songId), { rows: [] })
-    return Array.isArray(data.rows) ? data.rows : []
-  }
+  const runsOf = (owner) => sane(readJson(userFile(owner), { runs: [] }).runs)
+  const rowsOf = (songId) => sane(readJson(songFile(songId), { rows: [] }).rows)
 
   // 分數高的在前;同分比正確率,再同就比誰先打到的
   const better = (a, b) => b.points - a.points || b.accuracy - a.accuracy || String(a.at).localeCompare(String(b.at))
@@ -123,19 +134,32 @@ function createScores({ dir, now = Date.now, maxHistory = MAX_HISTORY, boardSize
     const run = normalizeRun(raw, now)
     if (!run) return { recorded: false }
 
-    writeJson(userFile(owner), { runs: [run, ...runsOf(owner)].slice(0, maxHistory) })
+    // 磁碟寫不進去(ENOSPC、權限、Windows 上防毒剛好咬著檔案)→ 回「沒記下來」,
+    // 不要讓整個端點 500。成績存不上是小事,成績面板壞掉才是大事
+    try {
+      writeJson(userFile(owner), { runs: [run, ...runsOf(owner)].slice(0, maxHistory) })
+    } catch (err) {
+      onError(new Error(`write history failed: ${err.message}`))
+      return { recorded: false }
+    }
 
     // 自己貼連結加的歌不進公開榜:那首歌只有他有,榜上只會是他自己跟自己比
     if (run.own) return { recorded: true, run, rank: null }
 
     const name = displayName(who)
     const mine = { owner, name, wpm: run.wpm, accuracy: run.accuracy, cleared: run.cleared, total: run.total, points: run.points, at: run.at }
-    const kept = rowsOf(run.songId).filter((row) => row.owner !== owner)
-    const previous = rowsOf(run.songId).find((row) => row.owner === owner)
+    const existing = rowsOf(run.songId)
+    const previous = existing.find((row) => row.owner === owner)
     // 一個人只占一列:只有打得比自己以前好才換掉那一列
     const row = previous && previous.points >= mine.points ? { ...previous, name } : mine
-    const rows = [...kept, row].sort(better).slice(0, boardSize)
-    writeJson(songFile(run.songId), { rows })
+    const rows = [...existing.filter((entry) => entry.owner !== owner), row].sort(better).slice(0, boardSize)
+    try {
+      writeJson(songFile(run.songId), { rows })
+    } catch (err) {
+      // 個人歷史已經寫進去了,所以這一輪算有記錄,只是沒上榜
+      onError(new Error(`write board failed: ${err.message}`))
+      return { recorded: true, run, rank: null }
+    }
     const index = rows.findIndex((entry) => entry.owner === owner)
     return { recorded: true, run, rank: index === -1 ? null : index + 1 }
   }

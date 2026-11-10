@@ -44,6 +44,12 @@ const TEXT = {
   misses: '最常打錯',
   retry: '再練一次',
   otherSongs: '換一首',
+  // credit
+  creditUnlock: (left) => `用 1 點解鎖整首(今天還有 ${left} 點)`,
+  creditNone: '今天的點數用完了 — 明天再來,或升級 Pro 整首不限',
+  creditWorking: '解鎖中…',
+  creditFailed: '解鎖失敗,再試一次',
+  creditLeft: (left) => `今天還有 ${left} 點`,
   // 成績與排行榜
   boardTitle: '排行榜',
   boardEmpty: '還沒有人留下成績 — 你可以是第一個',
@@ -156,8 +162,33 @@ function boardTable(items, myRank = null) {
   return table
 }
 
+// 今天還剩幾點;null = 不限(付費會員)
+function creditsLeft(song) {
+  const credits = song.credits || null
+  if (!credits || credits.limit === null) return null
+  return Math.max(credits.limit - credits.used, 0)
+}
+
+// 花 1 點把這一首整首打開。成功就重新整理 —— 伺服器那邊記著「今天解鎖過這首」,
+// 重新載入就會把整首送下來,不用在播放中途重建整個練習狀態
+async function spendCredit(button, note) {
+  const id = params.get('id') || ''
+  button.disabled = true
+  note.textContent = TEXT.creditWorking
+  const res = await postJson(`/api/songs/${encodeURIComponent(id)}/unlock`, {}).catch(() => null)
+  if (res && res.ok) return location.reload()
+  button.disabled = false
+  note.textContent = res && res.status === 402 ? TEXT.creditNone : TEXT.creditFailed
+}
+
 function showWall(song) {
+  const left = creditsLeft(song)
   window.teWall.show({
+    // 公開歌庫的歌、還有點數、今天還沒解鎖過這首 → 給他一條不用付錢的路
+    extra:
+      song.signedIn && !song.own && !song.unlocked && left !== null && left > 0
+        ? { label: TEXT.creditUnlock(left), onClick: spendCredit }
+        : null,
     signedIn: song.signedIn,
     title: TEXT.wallTitle,
     points: TEXT.wallPoints,
@@ -610,6 +641,19 @@ async function renderSong(id, { mine = false } = {}) {
     more.type = 'button'
     more.onclick = () => showWall(song)
     lock.append(more)
+    // 點數就擺在鎖旁邊 —— 這是最容易被看到的位置,也是「先嚐一次整首」的入口
+    const left = creditsLeft(song)
+    if (song.signedIn && !song.own && left !== null) {
+      if (left > 0) {
+        const spend = el('button', 'auth-btn quiet', TEXT.creditUnlock(left))
+        spend.type = 'button'
+        const note = el('p', 'lock-note', '')
+        spend.onclick = () => spendCredit(spend, note)
+        lock.append(spend, note)
+      } else {
+        lock.append(el('p', 'lock-note', TEXT.creditNone))
+      }
+    }
     lyrics.append(lock)
   }
 

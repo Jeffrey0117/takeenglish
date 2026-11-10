@@ -117,7 +117,10 @@ test('plans: 訪客 3 筆、會員不限、只有 Pro 能下載', () => {
   assert.equal(plans.can('free', 'download'), false)
   assert.equal(plans.can('pro', 'download'), true)
   assert.equal(plans.can('guest', 'subtitles'), true)
-  assert.deepEqual(plans.summary().map((t) => t.id), ['guest', 'free', 'pro'])
+  assert.deepEqual(plans.summary().map((t) => t.id), ['guest', 'free', 'pro', 'pro_plus'])
+  // Pro Plus 還沒有價格 → 功能閘門有,但方案頁不畫
+  assert.equal(plans.summary().find((t) => t.id === 'pro_plus').listed, false)
+  assert.equal(createPlans({ plusListed: true }).summary().find((t) => t.id === 'pro_plus').listed, true)
 })
 
 test('plans: 可以用設定收緊免費會員的筆數', () => {

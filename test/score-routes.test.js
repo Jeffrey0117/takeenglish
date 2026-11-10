@@ -121,6 +121,16 @@ test('排行榜公開可讀,但不含 email、不含使用者代號', async (t) 
   assert.equal(raw.includes('u-a@'), false)
 })
 
+test('免費會員只拿到 15 句,就不能報 20 句的成績(句數照伺服器實際送出的夾擠)', async (t) => {
+  const { server, base } = startApp()
+  t.after(() => server.close())
+  // 這首 20 句,免費會員只看得到 15 句 → cleared 不管報多少都當 15
+  const res = await post(base, '/api/type/scores', bearer('a@example.com', 'Amy'), { ...RUN, cleared: 20, seconds: 120 })
+  assert.equal(res.data.recorded, true)
+  assert.equal(res.data.run.cleared, 15)
+  assert.equal(res.data.run.points, Math.round(70 * 0.95 * 15))
+})
+
 test('自己貼的歌:進個人歷史,不進公開排行榜', async (t) => {
   const { server, base, mineDir } = startApp()
   t.after(() => server.close())
