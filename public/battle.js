@@ -11,9 +11,14 @@
     create: '開一間房',
     joinLabel: '房號',
     join: '加入',
-    codeHint: '把房號或連結給對手',
+    codeHint: '把這個連結傳給朋友,他點開就直接進來',
     copy: '複製連結',
-    copied: '已複製',
+    copied: '已複製!',
+    share: '分享',
+    openTitle: '現在有人在等對手',
+    openNone: '現在沒有人在等 — 開一間房,把連結傳給朋友',
+    openRow: (names, waiting, seats) => `${names} 等人 · ${waiting}/${seats}`,
+    openJoin: '加入',
     waiting: '等對手進來…',
     start: '開始',
     hostOnly: '等房主按開始',
@@ -52,6 +57,14 @@
     })
     const parsed = await res.json().catch(() => ({}))
     return { status: res.status, ok: res.ok && parsed.success === true, data: parsed.data, error: parsed.error }
+  }
+
+  async function getJson(url) {
+    await window.teSession.ready
+    const token = window.teSession.getToken()
+    const res = await fetch(url, { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const parsed = await res.json().catch(() => ({}))
+    return { ok: res.ok && parsed.success === true, data: parsed.data }
   }
 
   async function getState(code) {
@@ -130,6 +143,29 @@
 
     const shareUrl = (code) => `${location.origin}/type?id=${encodeURIComponent(song.id)}&battle=${encodeURIComponent(code)}`
 
+    // 現在有誰開著房在等對手。沒有好友系統,這就是「看人家上線沒」——
+    // 點一下就進去,不必先交換房號
+    async function loadOpen(mountNode) {
+      const res = await getJson(`/api/battle/open?songId=${encodeURIComponent(song.id)}`).catch(() => null)
+      if (!res || !res.ok || !res.data) return
+      const items = Array.isArray(res.data.items) ? res.data.items : []
+      mountNode.replaceChildren()
+      if (items.length === 0) {
+        mountNode.append(el('p', 'battle-hint', TEXT.openNone))
+        return
+      }
+      mountNode.append(el('p', 'battle-open-title', TEXT.openTitle))
+      for (const item of items) {
+        const row = el('div', 'battle-open-row')
+        row.append(el('span', 'battle-player-name', TEXT.openRow(item.players.join('、'), item.waiting, item.seats)))
+        const go = el('button', 'auth-btn quiet', TEXT.openJoin)
+        go.type = 'button'
+        go.onclick = () => joinRoom(item.code, go)
+        row.append(go)
+        mountNode.append(row)
+      }
+    }
+
     function renderIdle() {
       body.replaceChildren()
       body.append(el('p', 'battle-intro', TEXT.intro))
@@ -150,7 +186,9 @@
         const value = input.value.trim().toUpperCase()
         if (value.length === 6) joinRoom(value, go)
       }
-      body.append(create, form)
+      const open = el('div', 'battle-open')
+      body.append(create, form, open)
+      loadOpen(open)
     }
 
     function roster(state) {
@@ -172,19 +210,35 @@
       if (!state) return
       body.replaceChildren()
       if (!state.started && !state.over) {
+        const url = shareUrl(state.code)
         const code = el('p', 'battle-code', state.code)
-        const copy = el('button', 'auth-btn quiet', TEXT.copy)
+        // ⚠️ 連結一定要「看得見」:只給一顆複製鈕的話,複製不成功的人
+        // (剪貼簿權限、非 https)就完全不知道該傳什麼給朋友
+        const link = el('input', 'battle-link')
+        link.type = 'text'
+        link.readOnly = true
+        link.value = url
+        link.onclick = () => link.select()
+        const copy = el('button', 'auth-btn', TEXT.copy)
         copy.type = 'button'
         copy.onclick = async () => {
           try {
-            await navigator.clipboard.writeText(shareUrl(state.code))
+            await navigator.clipboard.writeText(url)
             copy.textContent = TEXT.copied
           } catch {
-            // 剪貼簿不給用就把連結放出來讓他自己複製
-            note.textContent = shareUrl(state.code)
+            // 複製不了就幫他選起來,他自己按 Ctrl+C
+            link.select()
           }
         }
-        body.append(code, el('p', 'battle-hint', TEXT.codeHint), copy, roster(state))
+        body.append(code, el('p', 'battle-hint', TEXT.codeHint), link, copy)
+        // 手機上「分享」比「複製」好用 —— 直接挑 LINE / 訊息送出去
+        if (navigator.share) {
+          const share = el('button', 'auth-btn quiet', TEXT.share)
+          share.type = 'button'
+          share.onclick = () => navigator.share({ title: song.title, text: TEXT.intro, url }).catch(() => {})
+          body.append(share)
+        }
+        body.append(roster(state))
         const iAmHost = state.players.some((person) => person.id === room.me && person.host)
         if (iAmHost) {
           const start = el('button', 'auth-btn', TEXT.start)

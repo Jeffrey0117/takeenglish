@@ -93,6 +93,23 @@ function mountBattleRoutes(app, { viewer, songs, battles, plans, ledger, limiter
     return sendState(res, { code: made.code, playerId: made.playerId, playerToken: made.playerToken, state: made.state })
   })
 
+  // 還在等人的房間。沒有好友系統,所以「看人家上線沒」就是看這一份清單
+  app.get('/api/battle/open', async (req, res) => {
+    const me = await player(req, res)
+    if (!me) return
+    if (tooMany(req, res, 'battle-open', 120, me.owner)) return
+    const songId = typeof req.query.songId === 'string' ? req.query.songId : ''
+    const items = battles
+      .openRooms({ songId })
+      // 歌名以伺服器為準,順便把歌庫裡已經不存在的房間濾掉
+      .map((room) => {
+        const song = songs.get(room.songId)
+        return song ? { ...room, title: song.title, artist: song.artist } : null
+      })
+      .filter(Boolean)
+    return sendState(res, { items })
+  })
+
   app.post('/api/battle/:code/join', async (req, res) => {
     const me = await player(req, res)
     if (!me) return

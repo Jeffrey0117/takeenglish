@@ -182,3 +182,36 @@ test('POST 進來只知道 owner,要能換成房內的玩家', () => {
   assert.equal(battles.whoIs(code, 'te-nobody'), null)
   assert.equal(battles.whoIs('ZZZZZZ', A.owner), null)
 })
+
+test('看得到還在等人的房間:開始了、滿了、已結束的都不列', () => {
+  const { battles, code, host } = room()
+  const open = battles.openRooms()
+  assert.equal(open.length, 1)
+  assert.deepEqual(open[0].players, ['Amy'])
+  assert.equal(open[0].waiting, 1)
+  assert.equal(open[0].code, code)
+  // 開始之後就不該再出現在「等人」的清單裡
+  battles.join(code, B)
+  battles.start(code, host)
+  assert.deepEqual(battles.openRooms(), [])
+})
+
+test('等人的房間滿了也不列', () => {
+  const { battles, code } = room()
+  battles.join(code, B)
+  battles.join(code, C)
+  assert.deepEqual(battles.openRooms(), [])
+})
+
+test('可以只看某一首歌還在等人的房間', () => {
+  const battles = createBattles({})
+  battles.create({ songId: 'demo', total: 4, ...A })
+  battles.create({ songId: 'other', total: 4, ...B })
+  assert.deepEqual(battles.openRooms({ songId: 'other' }).map((r) => r.songId), ['other'])
+  assert.equal(battles.openRooms().length, 2)
+})
+
+test('等人的清單不帶 owner', () => {
+  const { battles } = room()
+  assert.equal(JSON.stringify(battles.openRooms()).includes('te-'), false)
+})

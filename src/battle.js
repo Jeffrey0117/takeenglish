@@ -219,12 +219,36 @@ function createBattles({
     return () => room.listeners.delete(listener)
   }
 
+  // 還在等人的房間(沒開始、還有位子)。這是「看人家上線沒」的答案:
+  // 沒有好友系統,但看得到現在有誰開著房在等對手,點一下就進去
+  function openRooms({ songId = '', limit = 20 } = {}) {
+    sweep()
+    const out = []
+    for (const room of rooms.values()) {
+      if (room.started || room.over) continue
+      if (room.players.size === 0 || room.players.size >= maxPlayers) continue
+      if (songId && room.songId !== songId) continue
+      out.push({
+        code: room.code,
+        songId: room.songId,
+        total: room.total,
+        waiting: room.players.size,
+        seats: maxPlayers,
+        // 名字已經是去識別化過的(暱稱或遮起來的信箱),可以給別人看
+        players: [...room.players.values()].map((person) => person.name),
+        since: room.createdAt
+      })
+    }
+    // 剛開的房間排前面(等最久的那個最可能已經放棄了)
+    return out.sort((a, b) => b.since - a.since).slice(0, limit)
+  }
+
   function state(code) {
     const room = rooms.get(String(code).toUpperCase())
     return room ? view(room) : null
   }
 
-  return { create, join, start, cleared, leave, byToken, whoIs, subscribe, state, sweep, get size() { return rooms.size } }
+  return { create, join, start, cleared, leave, byToken, whoIs, subscribe, state, openRooms, sweep, get size() { return rooms.size } }
 }
 
 module.exports = { createBattles }

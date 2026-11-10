@@ -47,6 +47,29 @@
     return { node: box, bests: res.data.bests || {}, tier: res.data.tier }
   }
 
+  // 歌單頁的「現在有人在等對手」。沒登入或沒人在等就整區不畫
+  async function openRoomsSection() {
+    const res = await getJson('/api/battle/open')
+    if (!res.ok || !res.data) return null
+    const items = Array.isArray(res.data.items) ? res.data.items : []
+    if (items.length === 0) return null
+    const box = el('section', 'type-open')
+    box.append(el('h2', 'row-title', TEXT.openTitle), el('p', 'lesson-sub', TEXT.openHint))
+    const list = el('div', 'type-open-list')
+    for (const item of items) {
+      const row = el('a', 'type-open-row')
+      row.href = `/type?id=${encodeURIComponent(item.songId)}&battle=${encodeURIComponent(item.code)}`
+      row.append(
+        el('span', 'type-open-song', item.title),
+        el('span', 'type-open-who', TEXT.openWho(item.players.join('、'), item.waiting, item.seats)),
+        el('span', 'type-open-go', TEXT.openJoin)
+      )
+      list.append(row)
+    }
+    box.append(list)
+    return box
+  }
+
   async function renderList() {
     const res = await getJson('/api/songs')
     const main = $('#type-main')
@@ -65,6 +88,9 @@
       main.append(el('p', 'watch-status', TEXT.empty))
       return
     }
+    // 有人在等對手就擺在歌單上面 —— 那是現在最值得點的東西
+    const open = await openRoomsSection()
+    if (open) main.append(open)
     const mine = await scoresSection()
     const grid = el('div', 'lesson-grid')
     for (const item of res.data.items) grid.append(songCard(item, mine.bests[item.id] || null))

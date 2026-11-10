@@ -138,6 +138,42 @@
 .battle-player.me { background: rgba(255, 214, 10, 0.1); }
 .battle-player-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .battle-player-points { font-weight: 900; color: var(--yellow); font-variant-numeric: tabular-nums; }
+/* 邀請連結:一定要看得見,不能只給一顆複製鈕 */
+.battle-link {
+  align-self: stretch;
+  width: 100%;
+  padding: 9px 10px;
+  background: #000;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+.battle-link:focus { border-color: var(--yellow); color: #fff; outline: none; }
+.battle-open { align-self: stretch; margin-top: 4px; }
+.battle-open-title { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: 1px; color: var(--muted); }
+.battle-open-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 8px; border-top: 1px solid var(--line); font-size: 13px; }
+.battle-open-row:last-child { border-bottom: 1px solid var(--line); }
+.battle-open-row .auth-btn { flex: 0 0 auto; padding: 4px 10px; font-size: 12px; }
+
+/* 歌單頁:現在有人在等對手 */
+.type-open { margin-top: 24px; padding: 16px 14px; border: 2px solid var(--yellow); background: rgba(255, 214, 10, 0.05); }
+.type-open .row-title { font-size: 14px; }
+.type-open-list { margin-top: 10px; display: flex; flex-direction: column; }
+.type-open-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  padding: 9px 8px;
+  border-top: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+}
+.type-open-row:last-child { border-bottom: 1px solid var(--line); }
+.type-open-row:hover { background: rgba(255, 214, 10, 0.08); }
+.type-open-song { font-size: 14px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-open-who { grid-column: 1; color: var(--muted); font-size: 12px; font-weight: 700; }
+.type-open-go { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--yellow); font-size: 13px; font-weight: 900; }
 
 /* 排行榜:結算面板裡一份、右欄底下一份,共用同一組列 */
 .type-board { margin-top: 16px; }

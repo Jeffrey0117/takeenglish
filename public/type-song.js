@@ -592,7 +592,7 @@
       tool(TEXT.battle, () => {
         if (!song.signedIn) return window.teSession.login()
         openBattle()
-        battleMount.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        battleMount.scrollIntoView({ behavior: 'smooth', block: 'center' })
       })
     }
     tool(TEXT.restart, () => {
@@ -694,9 +694,10 @@
       return battle
     }
 
-    // 帶著 ?battle=XXXXXX 進來的(對手傳的連結)直接進房
+    // 對戰區進來就畫出來,不要藏在一排工具鈕後面 ——
+    // 「我要怎麼跟朋友 PK」不該需要先找到那顆鈕。?battle= 是對手傳的連結,直接進房
     const invited = (params.get('battle') || '').trim()
-    if (invited && song.signedIn && !song.own) openBattle(invited)
+    if (song.signedIn && !song.own) openBattle(invited)
 
     // 走 goTo 而不是直接 repaint:第一句的挖空要先算出來,不然整句都只是文字
     goTo(0)

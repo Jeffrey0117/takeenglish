@@ -47,6 +47,10 @@
     retry: '再練一次',
     otherSongs: '換一首',
     // 對戰
+  openTitle: '現在有人在等對手',
+  openHint: '點進去就直接進房,不用交換房號。',
+  openWho: (names, waiting, seats) => `${names} · ${waiting}/${seats} 人`,
+  openJoin: '加入 →',
     battle: '對戰',
     battleGuest: '登入後可以跟朋友對戰同一首歌',
     // credit

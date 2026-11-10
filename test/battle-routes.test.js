@@ -208,3 +208,25 @@ test('狀態不帶 owner、不帶 email', async (t) => {
   assert.equal(raw.includes('example.com'), false)
   assert.equal(raw.includes('te-u-'), false)
 })
+
+test('看得到還在等人的房間(帶歌名),沒登入看不到', async (t) => {
+  const { server, base } = startApp()
+  t.after(() => server.close())
+  await post(base, '/api/battle', bearer('a@example.com', 'Amy'), { songId: 'one' })
+  const list = await get(base, '/api/battle/open', bearer('b@example.com', 'Ben'))
+  assert.equal(list.status, 200)
+  assert.equal(list.data.items.length, 1)
+  assert.equal(list.data.items[0].title, 'one')
+  assert.deepEqual(list.data.items[0].players, ['Amy'])
+  assert.equal(JSON.stringify(list.body).includes('example.com'), false)
+  assert.equal((await get(base, '/api/battle/open')).status, 401)
+})
+
+test('只看某一首歌還在等人的房間', async (t) => {
+  const { server, base } = startApp()
+  t.after(() => server.close())
+  await post(base, '/api/battle', bearer('a@example.com', 'Amy'), { songId: 'one' })
+  await post(base, '/api/battle', bearer('b@example.com', 'Ben'), { songId: 'two' })
+  const list = await get(base, '/api/battle/open?songId=two', bearer('c@example.com', 'Cat'))
+  assert.deepEqual(list.data.items.map((r) => r.songId), ['two'])
+})
