@@ -18,6 +18,8 @@ const { ownerOf, createSongLibrary, createUserSongs, mountSongRoutes } = require
 const { createScores } = require('./scores')
 const { createLedger } = require('./ledger')
 const { mountScoreRoutes } = require('./score-routes')
+const { createBattles } = require('./battle')
+const { mountBattleRoutes } = require('./battle-routes')
 const { createYtDlp, importFromYouTube } = require('./song-import')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
@@ -85,6 +87,8 @@ function createApp({
   mySongs = createUserSongs({ dir: path.join(__dirname, '..', 'data', 'songs', 'users') }),
   // 練打成績:個人歷史 + 每首歌排行榜(純檔案,部署不會動到未追蹤的 data/)
   scores = createScores({ dir: path.join(__dirname, '..', 'data', 'scores') }),
+  // 對戰房(只放記憶體:一場幾分鐘,重啟就散)
+  battles = createBattles({}),
   // credit(每天)與加歌數(每月)的帳本
   ledger = createLedger({ dir: path.join(__dirname, '..', 'data', 'ledger') }),
   // 會員貼連結加歌:要有 yt-dlp 才開放(SONG_IMPORT=0 可以關掉)
@@ -251,6 +255,7 @@ function createApp({
     ledger
   })
   mountScoreRoutes(app, { viewer, songs, mySongs, scores, plans, ledger, limiter, clientIp, ownerOf })
+  mountBattleRoutes(app, { viewer, songs, battles, plans, ledger, limiter, clientIp, ownerOf })
 
   // 看劇區:有哪些劇、某一季的每一集(標題與劇情介紹,中英文)
   const artwork = createShowArtwork({ clipcafe, tokens })

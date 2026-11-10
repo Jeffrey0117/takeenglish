@@ -116,6 +116,26 @@
 .type-result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .type-result-actions .auth-btn { text-decoration: none; }
 
+/* 對戰 */
+.battle { margin-top: 16px; padding: 16px 14px; border: 2px solid var(--line); background: #0a0a0a; }
+.battle .row-title { font-size: 13px; }
+.battle-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.battle-body .auth-btn { align-self: stretch; }
+.battle-intro, .battle-hint { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.6; }
+.battle-note { margin-top: 10px; color: var(--yellow); font-size: 12px; font-weight: 700; word-break: break-all; }
+.battle-join { display: flex; gap: 8px; align-self: stretch; }
+.battle-join .lesson-add-input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 3px; font-weight: 900; }
+.battle-join .auth-btn { align-self: auto; flex: 0 0 auto; }
+/* 房號是要念給對手聽的,做大 */
+.battle-code { margin: 0; font-size: 30px; font-weight: 900; letter-spacing: 8px; color: var(--yellow); font-family: Consolas, monospace; }
+.battle-status { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+.battle-players { align-self: stretch; display: flex; flex-direction: column; }
+.battle-player { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 8px; border-top: 1px solid var(--line); font-size: 13px; }
+.battle-player:last-child { border-bottom: 1px solid var(--line); }
+.battle-player.me { background: rgba(255, 214, 10, 0.1); }
+.battle-player-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.battle-player-points { font-weight: 900; color: var(--yellow); font-variant-numeric: tabular-nums; }
+
 /* 排行榜:結算面板裡一份、右欄底下一份,共用同一組列 */
 .type-board { margin-top: 16px; }
 .type-board-note { color: var(--muted); font-size: 13px; font-weight: 700; }

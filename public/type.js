@@ -44,6 +44,9 @@ const TEXT = {
   misses: '最常打錯',
   retry: '再練一次',
   otherSongs: '換一首',
+  // 對戰
+  battle: '對戰',
+  battleGuest: '登入後可以跟朋友對戰同一首歌',
   // credit
   creditUnlock: (left) => `用 1 點解鎖整首(今天還有 ${left} 點)`,
   creditNone: '今天的點數用完了 — 明天再來,或升級 Pro 整首不限',
@@ -534,6 +537,8 @@ async function renderSong(id, { mine = false } = {}) {
   const state = {
     index: 0,
     typed: '',
+    // 對戰進行中:在第幾句由伺服器決定,自己不能跳句、也不自動往下
+    battle: false,
     // 一句挖幾個字。'auto' = 看句子長度決定,0 = 不挖空整句照打
     blankCount: 'auto',
     blanks: [],
@@ -553,6 +558,8 @@ async function renderSong(id, { mine = false } = {}) {
   // 每一句的狀態:false 沒練過 / 'cleared' 自己打出來 / 'revealed' 看了答案
   const done = new Array(song.lines.length).fill(false)
   let correctTimer = null
+  // 對戰的連線(開了房才有)
+  let battle = null
 
   // 這一句要挖哪幾個字
   function blanksFor(line) {
@@ -608,7 +615,8 @@ async function renderSong(id, { mine = false } = {}) {
   const lyrics = el('div', 'type-lyrics')
   const results = el('div', 'type-results')
   // 成績跟著打字區走(右欄的歌詞很長,放右邊會被捲出畫面)
-  stage.append(progress, box, tools, stats.node, results)
+  const battleMount = el('div', 'battle-mount')
+  stage.append(progress, box, tools, stats.node, battleMount, results)
   side.append(lyrics)
 
   // 右欄底下的排行榜:進來就看得到別人打到幾分(自己貼的歌沒有公開榜)
@@ -630,7 +638,10 @@ async function renderSong(id, { mine = false } = {}) {
   const rows = song.lines.map((line, index) => {
     const row = el('button', 'type-lyric', line.text)
     row.type = 'button'
-    row.onclick = () => goTo(index, { seek: true })
+    row.onclick = () => {
+      if (state.battle) return
+      goTo(index, { seek: true })
+    }
     lyrics.append(row)
     return row
   })
@@ -860,6 +871,12 @@ async function renderSong(id, { mine = false } = {}) {
     state.correct = true
     repaint()
     clearTimeout(correctTimer)
+    // 對戰:回報給伺服器,換句由它決定(第一個打完的人得分,全場一起跳)。
+    // 自己先跳的話兩邊就不同步了
+    if (state.battle && battle) {
+      battle.reportCleared(state.index)
+      return
+    }
     correctTimer = setTimeout(advanceAfterLine, CORRECT_MS)
   }
 
@@ -925,8 +942,13 @@ async function renderSong(id, { mine = false } = {}) {
     paintProgress()
   }
 
-  const prevLine = () => goTo(state.index - 1, { seek: true })
+  // 對戰時不能自己跳句 —— 大家一定在同一句上,不然就不是對戰了
+  const prevLine = () => {
+    if (state.battle) return
+    goTo(state.index - 1, { seek: true })
+  }
   const nextLine = () => {
+    if (state.battle) return
     if (state.index + 1 < song.lines.length) goTo(state.index + 1, { seek: true, resume: state.waiting })
     else finish()
   }
@@ -1045,6 +1067,14 @@ async function renderSong(id, { mine = false } = {}) {
     },
     { on: coverPref() }
   )
+  // 對戰只對公開歌庫的歌開放 —— 自己貼連結加的歌別人沒有
+  if (!song.own) {
+    tool(TEXT.battle, () => {
+      if (!song.signedIn) return window.teSession.login()
+      openBattle()
+      battleMount.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+  }
   tool(TEXT.restart, () => {
     // 成績也要歸零,不然第二輪的 WPM 會疊在第一輪上面
     score.reset()
@@ -1108,6 +1138,44 @@ async function renderSong(id, { mine = false } = {}) {
     clearInterval(timer)
     timer = setInterval(tick, TICK_MS)
   })
+
+  // ---- 對戰 ----
+
+  // 對戰期間伺服器是唯一的事實:在第幾句、開始了沒、結束了沒都照它說的。
+  // 自己這邊只負責「我打完這一句了」這一個回報
+  const battleEngine = {
+    onEnter: () => {
+      state.battle = true
+      input.focus({ preventScroll: true })
+    },
+    onLeave: () => {
+      state.battle = false
+    },
+    onStart: () => {
+      // 一場比賽從零開始算:上一輪的分數不能疊進來
+      score.reset()
+      state.cleared = 0
+      done.fill(false)
+      state.finished = false
+      results.replaceChildren()
+      paintProgress()
+    },
+    onForceLine: (index) => goTo(index, { seek: true, resume: true }),
+    onOver: () => {
+      state.battle = false
+      finish()
+    }
+  }
+
+  function openBattle(code = '') {
+    if (battle) return battle
+    battle = window.teBattle.attach({ song, mount: battleMount, engine: battleEngine, code })
+    return battle
+  }
+
+  // 帶著 ?battle=XXXXXX 進來的(對手傳的連結)直接進房
+  const invited = (params.get('battle') || '').trim()
+  if (invited && song.signedIn && !song.own) openBattle(invited)
 
   // 走 goTo 而不是直接 repaint:第一句的挖空要先算出來,不然整句都只是文字
   goTo(0)
