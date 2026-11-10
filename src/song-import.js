@@ -227,6 +227,36 @@ function attachTranslations(lines, zhCues) {
 
 // yt-dlp 介面。exec 可以換掉,測試不必真的打 YouTube。
 // ⚠️ 一次只跑一支:同時打太多次 YouTube 會回 429,之後每一支都抓不到字幕。
+// 同一支影片常常有好幾條「英文」字幕軌,而且好壞差很多。
+// 實測 CAMO - Wifey(韓文歌):
+//   sub.en-US.vtt   42 句,密度 15.55  ← 真的歌詞
+//   sub.en.vtt      18 句,密度 1.89   ← 幾乎都是 [Music]
+//   sub.en-orig.vtt 18 句,密度 1.89   ← 同上
+// 原本是「挑資料夾裡第一個 .vtt」,等於讓檔名順序決定品質,結果拿到廢的那條,
+// 然後回報「這首沒有英文字幕」。改成每條都讀、用內容密度挑最好的。
+function pickBestTrack(dir) {
+  let best = []
+  let bestScore = -1
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.endsWith('.vtt')) continue
+    let cues = []
+    try {
+      cues = parseCues(fs.readFileSync(path.join(dir, name), 'utf8'))
+    } catch {
+      continue
+    }
+    // 評分要看清乾淨之後的內容 —— 不然整條 [Music] 的軌會被字數灌水
+    const cleaned = tidy(cues)
+    if (cleaned.length === 0) continue
+    const score = subtitleDensity(cleaned)
+    if (score > bestScore) {
+      bestScore = score
+      best = cues
+    }
+  }
+  return best
+}
+
 function createYtDlp({
   bin = process.env.YTDLP_PATH || 'yt-dlp',
   timeoutMs = 90_000,
@@ -303,7 +333,6 @@ function createYtDlp({
         watchUrl(videoId)
       ])
       const [title, channel, embeddable, autoEn, manualEn] = stdout.trim().split('|||')
-      const file = fs.readdirSync(dir).find((name) => name.endsWith('.vtt'))
       return {
         meta: {
           title: title || '',
@@ -312,7 +341,7 @@ function createYtDlp({
           // NA = yt-dlp 說這支沒有這個語言的字幕
           hasEnglish: (autoEn && autoEn !== 'NA') || (manualEn && manualEn !== 'NA')
         },
-        cues: file ? parseCues(fs.readFileSync(path.join(dir, file), 'utf8')) : [],
+        cues: pickBestTrack(dir),
         stderr
       }
     } finally {
@@ -344,8 +373,7 @@ function createYtDlp({
           '--',
           watchUrl(videoId)
         ])
-        const file = fs.readdirSync(dir).find((name) => name.endsWith('.vtt'))
-        return file ? parseCues(fs.readFileSync(path.join(dir, file), 'utf8')) : []
+        return pickBestTrack(dir)
       } finally {
         fs.rmSync(dir, { recursive: true, force: true })
       }
@@ -435,6 +463,7 @@ module.exports = {
   deCaps,
   tooThin,
   subtitleDensity,
+  pickBestTrack,
   slugify,
   parseLrc,
   parseLyrics,

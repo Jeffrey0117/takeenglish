@@ -1,4 +1,7 @@
 const { test } = require('node:test')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
 const assert = require('node:assert/strict')
 const {
   videoIdOf,
@@ -15,7 +18,8 @@ const {
   looksLikeProse,
   reflow,
   tooThin,
-  subtitleDensity
+  subtitleDensity,
+  pickBestTrack
 } = require('../src/song-import')
 
 test('各種 YouTube 網址都認得出代號,不是 YouTube 的回空字串', () => {
@@ -429,4 +433,50 @@ test('擋下來的訊息要說得出「幾句、密度多少」,不然沒人知�
     () => buildSong({ videoId: 'TYGu-DnX8kg', meta: { title: 'x', channel: 'y', embeddable: true }, cues: JUNK }),
     (err) => /只有 4 句/.test(err.message) && /0\.4 個字元/.test(err.message)
   )
+})
+
+// ---- 同一支影片有好幾條「英文」字幕軌 ----
+
+// 實測 CAMO - Wifey(韓文歌)同時有三條:
+//   en-US  42 句,密度 15.55  ← 真的歌詞(使用者在 YouTube 上看到的就是這條)
+//   en     18 句,密度 1.89   ← 幾乎都是 [Music]
+//   en-orig 同上
+// 原本是「挑資料夾裡第一個 .vtt」,等於讓檔名順序決定品質 —— 挑到廢的那條之後
+// 還回報「這首不是英文歌」,把使用者引去怪影片。
+const VTT = (cues) =>
+  `WEBVTT\n\n${cues
+    .map(([from, to, text], i) => `${i + 1}\n00:00:${String(from).padStart(2, '0')}.000 --> 00:00:${String(to).padStart(2, '0')}.000\n${text}\n`)
+    .join('\n')}`
+
+test('有好幾條英文軌時,挑內容最紮實的那條(不是檔名排最前面的)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-tracks-'))
+  try {
+    // 檔名順序上 en-US 不見得排第一,但它才是好的那條
+    fs.writeFileSync(path.join(dir, 'sub.en.vtt'), VTT([[1, 20, '[Music]'], [20, 40, '[Music]'], [40, 59, 'oh']]))
+    fs.writeFileSync(
+      path.join(dir, 'sub.en-US.vtt'),
+      VTT([
+        [1, 5, 'Why you tryna be low'],
+        [5, 9, 'I can take it slow'],
+        [9, 14, 'We’ve been playin since I saw you at that party'],
+        [14, 19, 'Whole lotta surfers on my tide but you’re my papi'],
+        [19, 24, 'Didn’t know that you would ever see me crying']
+      ])
+    )
+    const cues = pickBestTrack(dir)
+    assert.equal(cues[0].text, 'Why you tryna be low')
+    assert.ok(cues.length >= 5)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('全部都是廢軌就回空的(讓上層去說「真的沒有字幕」)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-tracks-'))
+  try {
+    fs.writeFileSync(path.join(dir, 'sub.en.vtt'), VTT([[1, 30, '[Music]'], [30, 59, '[Applause]']]))
+    assert.deepEqual(pickBestTrack(dir), [])
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })
