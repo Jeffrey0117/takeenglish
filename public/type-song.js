@@ -489,8 +489,7 @@
       if (state.revealed || state.correct) return
       state.revealed = true
       state.rejected = false
-      state.typed = ''
-      input.value = ''
+      // 已經打的字留著:答案只是把還沒打的那幾格掀開,接著打完就好
       if (!done[state.index]) done[state.index] = 'revealed'
       paintLine()
       paintProgress()

@@ -33,7 +33,7 @@
     // 打字區
     hint: '整句都要打,點點的字要用聽的 · Enter 送出 · Tab 看答案 · ↓ 下一句 · ↑ 上一句 · Shift+Enter 重聽',
     waiting: '打完按 Enter 送出,影片就繼續播(聽不出來按 Tab)',
-    revealed: '這就是答案 — 照著打一次再按 Enter(這句不計分),或按 ↓ 跳下一句',
+    revealed: '這就是答案 — 接著打完再按 Enter(這句不計分),或按 ↓ 跳下一句',
     rejected: '還沒對 — 改好再按 Enter,聽不出來按 Tab',
     reveal: '看答案',
     zhLocked: '中文字幕 · Pro 全部開放',
