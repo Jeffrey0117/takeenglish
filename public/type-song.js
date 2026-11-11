@@ -137,7 +137,7 @@
     replay.setAttribute('aria-label', TEXT.again)
     replay.onclick = (event) => {
       event.stopPropagation()
-      goTo(state.index, { seek: true, resume: true })
+      replayLine()
     }
     zhView.onclick = (event) => {
       if (!zhView.classList.contains('locked')) return
@@ -506,7 +506,20 @@
       if (state.index + 1 < song.lines.length) goTo(state.index + 1, { seek: true, resume: state.waiting })
       else finish()
     }
-    const replayLine = () => goTo(state.index, { seek: true, resume: true })
+    // 重聽這句:只把影片倒回句首再播,已經打的字、掀開的答案都留著。
+    // 重聽就是因為有幾個字沒聽清楚 —— 把前面打好的清掉等於罰他重打
+    function replayLine() {
+      const line = currentLine()
+      // 練完了(結算畫面)才走 goTo:要把引擎重新叫醒
+      if (!line || state.finished) return goTo(state.index, { seek: true, resume: true })
+      seek(line.start)
+      // 不更新的話 tick 會以為是使用者自己拖了進度條
+      state.lastTime = line.start
+      state.waiting = false
+      play()
+      paintLine()
+      input.focus({ preventScroll: true })
+    }
 
     input.onkeydown = (event) => {
       if (event.key === 'Enter') {
