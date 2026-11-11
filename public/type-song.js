@@ -75,6 +75,8 @@
       blankCount: 'auto',
       blanks: [],
       revealed: false,
+      // 按了 Enter 但還沒對(下一次打字就清掉)
+      rejected: false,
       // 整句打對之後亮綠的那一下
       correct: false,
       showZh: true,
@@ -225,8 +227,16 @@
       }
       lineView.classList.toggle('correct', state.correct)
       zhView.textContent = state.showZh && line.zh ? line.zh : ''
-      hint.textContent = state.correct ? TEXT.correct : state.revealed ? TEXT.revealed : state.waiting ? TEXT.waiting : TEXT.hint
-      hint.classList.toggle('type-waiting', state.waiting || state.revealed)
+      hint.textContent = state.correct
+        ? TEXT.correct
+        : state.rejected
+          ? TEXT.rejected
+          : state.revealed
+            ? TEXT.revealed
+            : state.waiting
+              ? TEXT.waiting
+              : TEXT.hint
+      hint.classList.toggle('type-waiting', state.waiting || state.revealed || state.rejected)
       hint.classList.toggle('type-correct', state.correct)
     }
 
@@ -273,6 +283,7 @@
       state.typed = ''
       state.waiting = false
       state.revealed = false
+      state.rejected = false
       input.value = ''
       const line = currentLine()
       state.blanks = blanksFor(line)
@@ -423,12 +434,13 @@
         return
       }
       const next = input.value
+      state.rejected = false
+      // 打完不會自己過 —— 要按 Enter 送出(見 submit)。這裡只負責畫字和記分
       // 掀開答案之後還是可以照著打一次 —— 這是「看到正確答案就想自己打一遍」的那個需求。
       // 但不記分也不抖:答案就在眼前,算進 WPM/正確率就是假的
       if (state.revealed) {
         state.typed = next
         paintLine()
-        if (lineDone(next, line.text)) lineComplete('cleared')
         return
       }
       // 只在「多打了一個字」的時候記分:退格不罰,貼上不算成績
@@ -437,24 +449,38 @@
         const expected = line.text[at]
         const correct = expected !== undefined && same(next[at], expected)
         score.key(correct, correct ? '' : wordAt(line.text, at))
-        if (!correct) {
-          box.classList.remove('wrong')
-          void box.offsetWidth
-          box.classList.add('wrong')
-        }
+        if (!correct) shake()
       }
       state.typed = next
       paintLine()
       stats.update(state.cleared)
-      if (lineDone(next, line.text)) lineComplete('cleared')
     }
 
-    // Enter = 只是「給我看答案」,不會換句。
-    // 原本掀開後 1.6 秒自動下一句 —— 看到答案想照著打一次的人會被推走,
-    // 而手快按兩次 Enter 的人等於整句跳過沒練到。要往下請按 ↓ / Tab。
+    function shake() {
+      box.classList.remove('wrong')
+      void box.offsetWidth
+      box.classList.add('wrong')
+    }
+
+    // Enter = 送出。整句對了才過(亮綠 → 下一句);還沒對就抖一下留在原地,
+    // 不會換句也不會掀答案 —— 手快多按幾次 Enter 不會把句子跳掉
+    function submit() {
+      const line = currentLine()
+      if (!line) return
+      // 對戰時換句由伺服器決定,已經過了就等它,不能自己先走
+      if (state.correct) return state.battle ? undefined : advanceAfterLine()
+      if (lineDone(state.typed, line.text)) return lineComplete('cleared')
+      state.rejected = true
+      shake()
+      paintLine()
+    }
+
+    // Tab = 只是「給我看答案」,不會換句。
+    // 看到答案想照著打一次的人可以打完再按 Enter;要直接往下請按 ↓。
     function reveal() {
-      if (state.revealed) return
+      if (state.revealed || state.correct) return
       state.revealed = true
+      state.rejected = false
       state.typed = ''
       input.value = ''
       if (!done[state.index]) done[state.index] = 'revealed'
@@ -479,8 +505,13 @@
         event.preventDefault()
         // Shift+Enter 重聽這句:手不用離開打字的位置,比 Esc 好按
         if (event.shiftKey) replayLine()
-        else if (state.correct) advanceAfterLine()
-        else reveal()
+        else submit()
+        return
+      }
+      // Tab 看答案。一定要 preventDefault,不然焦點會跳到下一顆按鈕、字就打不進來了
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        if (!event.shiftKey) reveal()
         return
       }
       // ↑ ↓ 換句。左右鍵留給游標 —— 打錯一個字母要往回移,那個不能被搶走
@@ -492,12 +523,6 @@
       if (event.key === 'ArrowUp') {
         event.preventDefault()
         prevLine()
-        return
-      }
-      if (event.key === 'Tab') {
-        event.preventDefault()
-        if (event.shiftKey) prevLine()
-        else nextLine()
         return
       }
       if (event.key === 'Escape') {
@@ -528,8 +553,17 @@
 
     const playButton = tool(TEXT.play, () => (playing ? pause() : play()))
     tool(TEXT.again, () => replayLine(), { title: 'Shift+Enter(或 Esc)' })
-    tool(TEXT.prev, () => prevLine(), { title: '↑(或 Shift+Tab)' })
-    tool(TEXT.next, () => nextLine(), { title: '↓(或 Tab)' })
+    tool(TEXT.prev, () => prevLine(), { title: '↑' })
+    tool(TEXT.next, () => nextLine(), { title: '↓' })
+    // 手機鍵盤沒有 Tab,看答案要有一顆按得到的鈕
+    tool(
+      TEXT.reveal,
+      () => {
+        reveal()
+        input.focus({ preventScroll: true })
+      },
+      { title: 'Tab' }
+    )
     tools.append(el('span', 'sep'))
     tool(TEXT.speed(SPEEDS[0]), (button) => {
       state.speed = (state.speed + 1) % SPEEDS.length

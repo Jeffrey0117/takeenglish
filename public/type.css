@@ -44,7 +44,7 @@
 /* 沒挖空的部分:看得到,當提示用,顏色壓低不搶戲 */
 .type-line .ch { color: #5c5c58; }
 .type-line .ch.context { color: #8d8d84; }
-/* 按了 Enter 掀開的答案 */
+/* 按了 Tab 掀開的答案 */
 .type-line .ch.revealed { color: #7fd1ff; }
 .type-line .ch.hit { color: var(--yellow); }
 .type-line .ch.miss { color: #ff6b6b; background: rgba(255, 107, 107, 0.16); }

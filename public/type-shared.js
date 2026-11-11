@@ -31,9 +31,11 @@
     coverHint: '很多 MV 直接把歌詞印在畫面上,想純聽寫就遮起來',
     restart: '從頭開始',
     // 打字區
-    hint: '整句都要打,點點的字要用聽的 · Enter 看答案 · ↓ 下一句 · ↑ 上一句 · Shift+Enter 重聽',
-    waiting: '打完這一句,影片就繼續播(聽不出來按 Enter)',
-    revealed: '這就是答案 — 照著打一次(這句不計分),或按 ↓ 跳下一句',
+    hint: '整句都要打,點點的字要用聽的 · Enter 送出 · Tab 看答案 · ↓ 下一句 · ↑ 上一句 · Shift+Enter 重聽',
+    waiting: '打完按 Enter 送出,影片就繼續播(聽不出來按 Tab)',
+    revealed: '這就是答案 — 照著打一次再按 Enter(這句不計分),或按 ↓ 跳下一句',
+    rejected: '還沒對 — 改好再按 Enter,聽不出來按 Tab',
+    reveal: '看答案',
     correct: '對了!',
     startHint: '按播放開始。整句都要打,點點的那幾個字要用聽的',
     // 成績
