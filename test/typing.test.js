@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { norm, same, lineDone, wordAt, lineIndexAt, createScore, needsSeek, pickBlanks, autoBlankCount, wholeLine } = require('../public/typing-core')
+const { norm, same, lineDone, wordAt, lineIndexAt, createScore, needsSeek, seekTarget, pickBlanks, autoBlankCount, wholeLine } = require('../public/typing-core')
 
 test('打不出來的字元會對應到鍵盤上打得出來的那個', () => {
   assert.equal(norm('’'), "'") // 彎的單引號
@@ -214,8 +214,9 @@ test('已經播過這一句了就倒回句首 — 不然打第 5 句、影片唱
 
 test('快要播到就不要動,讓它自然播過去(間奏照樣聽得到)', () => {
   assert.equal(needsSeek(8, LINE), false) // 再兩秒就唱到了
-  // 剛好在這句裡面:正在唱,更不能跳
-  assert.equal(needsSeek(12, LINE), false)
+  // 已經唱進這句了:開頭沒聽到,要倒回句首
+  assert.equal(needsSeek(12, LINE), true)
+  assert.equal(needsSeek(10, LINE), false) // 剛好在句首,不用動
   // 但差太遠就要追上去(連按 Enter 跳過好幾句的情況)
   assert.equal(needsSeek(1, LINE), true)
 })
@@ -246,9 +247,15 @@ test('連按 Enter 跳過好幾句時,影片要追上來(不是停在原地)', (
   assert.equal(needsSeek(76.5, { start: 80, end: 84 }), false)
 })
 
-test('句末暫停之後接著下一句:不該亂跳(兩句首尾相接或只差一點點)', () => {
-  // 剛在上一句結尾停住(14.25),下一句從 14 開始 → 已經在這句裡面
-  assert.equal(needsSeek(14.25, { start: 14, end: 18 }), false)
+test('句末暫停之後接著下一句:首尾相接的要倒回句首(不然開頭沒聽到),有間奏的不動', () => {
+  // 剛在上一句結尾停住(14.25),下一句從 14 開始 → 這句已經開口了,從這裡播會少聽開頭
+  assert.equal(needsSeek(14.25, { start: 14, end: 18 }), true)
   // 中間有三秒間奏,還在容許範圍內 → 讓它自然播過去
   assert.equal(needsSeek(14.25, { start: 17, end: 21 }), false)
+})
+
+test('跳到一句時往前多給一點(字幕的開始時間常比歌手開口晚),但不會跳到負的', () => {
+  assert.ok(seekTarget({ start: 10, end: 14 }) < 10)
+  assert.ok(seekTarget({ start: 10, end: 14 }) >= 9)
+  assert.equal(seekTarget({ start: 0.2, end: 3 }), 0)
 })

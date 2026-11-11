@@ -4,7 +4,7 @@
   const { TEXT, $, el, status, getJson, postJson } = window.teType
   const { boardTable, createStats, creditsLeft, spendCredit, sideBoard, showWall, params, watchSignIn } = window.teType
   const { coverPref, setCoverPref, mountPlayer } = window.teTypePlayer
-  const { same, lineDone, wordAt, lineIndexAt, needsSeek, createScore, pickBlanks, autoBlankCount, wholeLine } = window.teTyping
+  const { same, lineDone, wordAt, lineIndexAt, needsSeek, seekTarget, createScore, pickBlanks, autoBlankCount, wholeLine } = window.teTyping
 
   // YouTube 只認得這幾個速度,給它 0.9 會被吸到最近的一個 — 按鈕寫 0.9x 但其實是 1x
   const SPEEDS = [1, 0.75, 0.5]
@@ -301,8 +301,8 @@
       // 不然你在打第 5 句、影片在唱第 8 句,這個練習就散了。
       // 還沒播到不用動 —— 讓它自然播過去,中間的前奏/間奏照樣聽得到
       if (needsSeek(time(), line, shouldSeek)) {
-        seek(line.start)
-        state.lastTime = line.start
+        seek(seekTarget(line))
+        state.lastTime = seekTarget(line)
       }
       if (resume) play()
       repaint()
@@ -511,9 +511,9 @@
       const line = currentLine()
       // 練完了(結算畫面)才走 goTo:要把引擎重新叫醒
       if (!line || state.finished) return goTo(state.index, { seek: true, resume: true })
-      seek(line.start)
+      seek(seekTarget(line))
       // 不更新的話 tick 會以為是使用者自己拖了進度條
-      state.lastTime = line.start
+      state.lastTime = seekTarget(line)
       state.waiting = false
       play()
       paintLine()

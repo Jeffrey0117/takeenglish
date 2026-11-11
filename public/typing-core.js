@@ -123,15 +123,21 @@
 
   // 換句之後影片要不要跳。影片要停在「你正在打的那一句」上:
   //   explicit:使用者自己點的(點歌詞、上一句/下一句、重聽)→ 一定跳
-  //   已經播過這一句了(打太慢)→ 倒回句首
+  //   已經唱進這一句了(哪怕只唱了開頭)→ 倒回句首。句末暫停是停在「上一句結尾再多一點」,
+  //     兩句首尾相接時那一刻下一句已經開口了 —— 從那裡接著播,開頭那幾個字就沒聽到,聽寫不了
   //   還差很遠才會唱到(連按 Enter 跳過好幾句)→ 往前跳過去
   //   快要唱到了 → 不要動,讓它自然播過去
   function needsSeek(seconds, line, explicit = false, lead = SEEK_LEAD_SECONDS) {
     if (explicit) return true
     if (!line) return false
-    if (seconds >= line.end) return true
+    if (seconds > line.start) return true
     return seconds < line.start - lead
   }
+
+  // 跳到一句的時候往前多給一點:字幕的開始時間常常比歌手開口晚,
+  // 剛好從 start 播會吃掉第一個字。寧可多聽到上一句的尾巴
+  const LEAD_IN_SECONDS = 0.7
+  const seekTarget = (line, leadIn = LEAD_IN_SECONDS) => Math.max((line ? line.start : 0) - leadIn, 0)
 
   // 這個時間點該練哪一句:第一句還沒唱完的。全部唱完了就是最後一句
   function lineIndexAt(seconds, lines) {
@@ -207,7 +213,7 @@
     }
   }
 
-  const api = { norm, same, lineDone, wordAt, lineIndexAt, needsSeek, createScore, wordSpans, isWeakWord, pickBlanks, autoBlankCount, wholeLine }
+  const api = { norm, same, lineDone, wordAt, lineIndexAt, needsSeek, seekTarget, createScore, wordSpans, isWeakWord, pickBlanks, autoBlankCount, wholeLine }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   if (typeof window !== 'undefined') window.teTyping = api
 })()
