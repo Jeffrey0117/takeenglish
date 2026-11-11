@@ -139,6 +139,11 @@
       event.stopPropagation()
       goTo(state.index, { seek: true, resume: true })
     }
+    zhView.onclick = (event) => {
+      if (!zhView.classList.contains('locked')) return
+      event.stopPropagation()
+      showWall(song)
+    }
     box.append(lineView, zhView, hint, input, replay)
     box.onclick = () => input.focus({ preventScroll: true })
     input.onfocus = () => box.classList.add('focused')
@@ -226,7 +231,10 @@
         lineView.append(el('span', cls, shown))
       }
       lineView.classList.toggle('correct', state.correct)
-      zhView.textContent = state.showZh && line.zh ? line.zh : ''
+      // 鎖住的中文:伺服器沒送內容,只說「這句有中文」。點下去是升級視窗
+      const zhLocked = state.showZh && line.zhLocked === true
+      zhView.textContent = zhLocked ? TEXT.zhLocked : state.showZh && line.zh ? line.zh : ''
+      zhView.classList.toggle('locked', zhLocked)
       hint.textContent = state.correct
         ? TEXT.correct
         : state.rejected
@@ -580,7 +588,7 @@
       goTo(state.index)
     })
     // 這首歌沒有中文翻譯就不要擺一個按了沒反應的鈕
-    if (song.lines.some((line) => line.zh)) {
+    if (song.lines.some((line) => line.zh || line.zhLocked)) {
       tool(
         TEXT.zh,
         (button) => {

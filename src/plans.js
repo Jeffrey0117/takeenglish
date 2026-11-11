@@ -17,6 +17,7 @@ function toQuota(limit) {
 // lessonLines = 影片學習的逐字稿露出幾句;lessonModes = 學習模式(單句重複、慢速、聽寫、重點整理)
 // typing = 聽歌練英打進不進得去(會員專屬,訪客沒有);typingLines = 一首歌開放練幾句
 // typingCredits = 每天幾點 credit(1 點 = 某一首整首解鎖一天,或一場對戰)
+// typingZh = 練打時中文字幕開放前幾句(自己加的歌也照這個算)
 // songUpload = 自己貼 YouTube 連結,一個月可以加幾支(自己加的歌不切句數)
 function createPlans({
   guestLimit = 3,
@@ -26,6 +27,7 @@ function createPlans({
   guestLessonLines = 5,
   memberLessonLines = 10,
   memberTypingLines = 15,
+  memberTypingZh = 5,
   // 一個月能加幾首歌。免費會員嘗鮮,付費的差別就在這個數字
   memberSongUploads = 3,
   proSongUploads = 30,
@@ -43,7 +45,7 @@ function createPlans({
         price: 0,
         // 訪客不是可以「選」的方案:功能閘門照用,但方案頁不畫(見 paywall-kit SKILL.md 方案頁鐵則)
         listed: false,
-        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false, typing: false, typingLines: 0, typingCredits: 0, songUpload: 0, ads: true }
+        features: { results: toQuota(guestLimit), subtitles: true, download: false, study: 0, studyEpisodes: freeEpisodes, lessonNotes: true, lessonLines: guestLessonLines, lessonModes: false, lessonUpload: false, typing: false, typingLines: 0, typingZh: 0, typingCredits: 0, songUpload: 0, ads: true }
       },
       {
         id: 'free',
@@ -63,6 +65,7 @@ function createPlans({
           // ⚠️ 不要套 toQuota:那是給「0 = 不擋」的搜尋筆數用的。
           // 這裡 0 要是「一句都不給」,套下去會變成免費會員整首歌全拿
           typingLines: memberTypingLines,
+          typingZh: memberTypingZh,
           typingCredits: memberCredits,
           songUpload: memberSongUploads,
           // 非付費會員會看到廣告。這是 Pro 的賣點之一,所以它屬於分層而不是版面設定
@@ -73,14 +76,14 @@ function createPlans({
         id: 'pro',
         name: 'Pro',
         price: 0,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingCredits: UNLIMITED, songUpload: proSongUploads, ads: false }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingZh: UNLIMITED, typingCredits: UNLIMITED, songUpload: proSongUploads, ads: false }
       },
       {
         id: 'pro_plus',
         name: 'Pro Plus',
         price: 0,
         listed: plusListed,
-        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingCredits: UNLIMITED, songUpload: plusSongUploads, ads: false }
+        features: { results: UNLIMITED, subtitles: true, download: true, study: UNLIMITED, studyEpisodes: UNLIMITED, lessonNotes: true, lessonLines: UNLIMITED, lessonModes: true, lessonUpload: true, typing: true, typingLines: UNLIMITED, typingZh: UNLIMITED, typingCredits: UNLIMITED, songUpload: plusSongUploads, ads: false }
       }
     ]
   })
@@ -108,6 +111,7 @@ function createPlans({
         studyEpisodes: quota(tier.id, 'studyEpisodes'),
         lessonLines: quota(tier.id, 'lessonLines'),
         typingLines: quota(tier.id, 'typingLines'),
+        typingZh: quota(tier.id, 'typingZh'),
         typingCredits: quota(tier.id, 'typingCredits'),
         songUpload: quota(tier.id, 'songUpload')
       }

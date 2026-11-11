@@ -13,8 +13,13 @@ const MIN_LINE_SECONDS = 0.6
 const EN_LANGS = 'en-orig,en,en-US,en-GB'
 // 被 YouTube 擋到之後先停手。繼續猛打只會被擋更久
 const COOLDOWN_MS = 5 * 60_000
+// 中文(翻譯字幕)的冷卻另外算、也比較久:YouTube 的翻譯字幕特別容易回 429,
+// 而且那只代表「翻譯抓不到」,不該連帶把英文匯入一起停掉
+const ZH_COOLDOWN_MS = 30 * 60_000
 const RATE_LIMITED = /HTTP Error 429|Too Many Requests|Sign in to confirm/i
-const ZH_LANGS = 'zh-Hant,zh-TW,zh-Hans,zh'
+// 繁體中文。YouTube 自動翻譯的那條代號長這樣:zh-Hant-en-nP7-2PuUl7o(後面接來源字幕軌),
+// 所以要用 regex 才抓得到。只要繁體 —— 多要一種語言就多打 YouTube 一輪
+const ZH_LANGS = 'zh-Hant.*,zh-TW,zh-HK'
 // YouTube 標題常帶一堆宣傳標記:[OFFICIAL VIDEO]、(Lyric Video)、(from 某某電影原聲帶)
 const PROMO_BRACKET = /\s*\[[^\]]*\]/g
 const PROMO_PAREN = /\s*\((?:[^)]*\b(?:official|lyric|lyrics|audio|video|visuali[sz]er|explicit|remaster|hd|4k|mv)\b[^)]*|from [^)]*)\)/gi
@@ -50,7 +55,11 @@ function lyricText(text) {
     .replace(/[♪♫♩♬]/g, ' ')
     // 自動字幕會在句子中間插 [Music]、[Applause];方括號在歌詞裡幾乎不會出現,整組拿掉
     .replace(/\[[^\]]*\]/g, ' ')
+    // 中文字幕的音效描述用全形括號:（歡快的音樂）
+    .replace(/（[^）]*）/g, ' ')
     .replace(/\s+/g, ' ')
+    // 中文字幕換行併成一行之後,中文字中間會多一個空白(「罪惡之 城」)
+    .replace(/([　-〿一-鿿＀-￯])\s+(?=[　-〿一-鿿＀-￯])/g, '$1')
     .trim()
   if (!cleaned) return ''
   // 整句都是括號裡的描述(音效、段落標記)
@@ -266,8 +275,10 @@ function createYtDlp({
   let queue = Promise.resolve()
   // 被 YouTube 擋過之後的冷卻。繼續猛打只會被擋更久,而且每次都要等 yt-dlp 跑完才知道
   let blockedUntil = 0
+  let zhBlockedUntil = 0
 
-  function runNow(args) {
+  // soft = 這一趟只是去拿中文翻譯。被擋只記在中文自己的冷卻上
+  function runNow(args, soft = false) {
     return new Promise((resolve, reject) => {
       exec(bin, args, { encoding: 'utf8', windowsHide: true, timeout: timeoutMs, maxBuffer: 8 << 20 }, (err, stdout, stderr) => {
         const out = String(stdout || '')
@@ -275,6 +286,10 @@ function createYtDlp({
         // ⚠️ yt-dlp 抓不到字幕時不一定是非零離開 —— 它會把 429 印在 stderr 然後正常結束。
         // 只看離開碼的話,我們會把「被擋下來」講成「這支影片沒有字幕」(使用者被這個騙了好幾次)
         if (RATE_LIMITED.test(detail) || (err && RATE_LIMITED.test(String(err.message || '')))) {
+          if (soft) {
+            zhBlockedUntil = now() + ZH_COOLDOWN_MS
+            return reject(importError('zh_rate_limited', 'YouTube 暫時不給中文字幕'))
+          }
           blockedUntil = now() + COOLDOWN_MS
           return reject(importError('rate_limited', 'YouTube 暫時擋下請求'))
         }
@@ -286,13 +301,16 @@ function createYtDlp({
   }
 
   // 排隊,前一支失敗不影響下一支
-  function run(args) {
+  function run(args, soft = false) {
     const left = blockedUntil - now()
     if (left > 0) {
       const minutes = Math.ceil(left / 60_000)
       return Promise.reject(importError('rate_limited', `YouTube 還在擋,大約 ${minutes} 分鐘後再試`))
     }
-    const result = queue.then(() => runNow(args))
+    if (soft && zhBlockedUntil > now()) {
+      return Promise.reject(importError('zh_rate_limited', 'YouTube 暫時不給中文字幕'))
+    }
+    const result = queue.then(() => runNow(args, soft))
     queue = result.then(
       () => {},
       () => {}
@@ -378,6 +396,46 @@ function createYtDlp({
         fs.rmSync(dir, { recursive: true, force: true })
       }
     },
+    // 繁體中文字幕(多半是自動翻譯)。一支影片可能有好幾條(從人工英文字幕翻的、
+    // 從自動辨識翻的),其中一條被擋不代表全部被擋 —— 有抓到任何一條就用,全沒有才算失敗
+    async translations(videoId) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-song-'))
+      try {
+        let failure = null
+        try {
+          await run(
+            [
+              '--skip-download',
+              '--write-subs',
+              '--write-auto-subs',
+              '--sub-langs',
+              ZH_LANGS,
+              '--sub-format',
+              'vtt',
+              // ⚠️ 這裡不能加 --no-warnings:配上 --ignore-errors,字幕的 429 會降級成警告,
+              // 一關掉警告就完全看不出被擋了(離開碼 0、stderr 空白、只是沒有檔案)
+              '--ignore-errors',
+              '--sleep-requests',
+              '1',
+              '--sleep-subtitles',
+              '2',
+              '-o',
+              path.join(dir, 'sub'),
+              '--',
+              watchUrl(videoId)
+            ],
+            true
+          )
+        } catch (err) {
+          failure = err
+        }
+        const cues = pickBestTrack(dir)
+        if (cues.length === 0 && failure) throw failure
+        return cues
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    },
     async meta(videoId) {
       const { meta } = await fetchSong(videoId, EN_LANGS)
       return meta
@@ -432,7 +490,8 @@ function buildSong({ videoId, meta = {}, cues, zhCues = [], id: wantedId = '', t
   }
 }
 
-// 從 YouTube 抓一支回來(會跑 yt-dlp,要花幾秒到幾十秒)
+// 從 YouTube 抓一支回來(會跑 yt-dlp,要花幾秒到幾十秒)。
+// zh = 順便抓中文字幕(多半是 YouTube 的自動翻譯)。抓不到不影響匯入,只是沒有中文
 async function importFromYouTube(url, { ytdlp = createYtDlp(), zh = false, level = '' } = {}) {
   const videoId = videoIdOf(url)
   if (!videoId) throw importError('bad_url', '這不是 YouTube 影片連結')
@@ -445,11 +504,21 @@ async function importFromYouTube(url, { ytdlp = createYtDlp(), zh = false, level
     if (meta.hasEnglish) throw importError('subs_fetch_failed', '這支影片有英文字幕,但這次沒抓到 — 稍後再試一次')
     throw importError('no_subtitles', '這支影片沒有英文字幕')
   }
-  const zhCues = zh ? await ytdlp.subtitles(videoId, ZH_LANGS).catch(() => []) : []
+  const fetchZh = () => (ytdlp.translations ? ytdlp.translations(videoId) : ytdlp.subtitles(videoId, ZH_LANGS))
+  const zhCues = zh ? await fetchZh().catch(() => []) : []
   return buildSong({ videoId, meta, cues, zhCues, level })
 }
 
+// 會員貼連結用的匯入器。translate 是「之後補抓中文」用的(匯入當下被擋的話,
+// 下次打開那首歌會再試一次 —— 見 src/songs.js 的 fillZh)
+function createSongImporter({ ytdlp = createYtDlp() } = {}) {
+  const importer = (url) => importFromYouTube(url, { ytdlp, zh: true })
+  importer.translate = async (videoId) => tidy(await ytdlp.translations(videoId))
+  return importer
+}
+
 module.exports = {
+  createSongImporter,
   EN_LANGS,
   ZH_LANGS,
   YOUTUBE_ID_PATTERN,

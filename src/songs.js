@@ -1,12 +1,15 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { blanksForLines } = require('./song-blanks')
+const { attachTranslations } = require('./song-import')
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/
 // YouTube 影片代號固定 11 碼。只認這個格式,不然等於讓資料檔決定 iframe 的網址
 const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/
 const MAX_LINES = 400
 const MAX_TEXT = 200
+// 沒有中文的歌,隔多久再去 YouTube 問一次
+const ZH_RETRY_MS = 6 * 60 * 60_000
 
 function fail(res, status, error) {
   res.set('Cache-Control', 'no-store')
@@ -181,6 +184,26 @@ function mountSongRoutes(app, {
     if (!blankCache.has(song)) blankCache.set(song, blanksForLines(song.lines, dictionary))
     return blankCache.get(song)
   }
+  // 自己加的歌沒有中文(匯入當下 YouTube 不給、或是以前加的)→ 打開時在背景補抓一次。
+  // 不等它:這次照樣先回沒有中文的版本,抓到了下次打開就有
+  const zhTried = new Map()
+  function fillZh(owner, song) {
+    if (!importer || typeof importer.translate !== 'function') return
+    if (song.lines.some((line) => line.zh)) return
+    const key = `${owner}/${song.id}`
+    if (Date.now() - (zhTried.get(key) || 0) < ZH_RETRY_MS) return
+    zhTried.set(key, Date.now())
+    Promise.resolve()
+      .then(() => importer.translate(song.youtubeId))
+      .then((cues) => {
+        if (!Array.isArray(cues) || cues.length === 0) return
+        const lines = attachTranslations(song.lines, cues)
+        // 抓的這段時間他可能已經把歌刪了,別又寫回來
+        if (lines.some((line) => line.zh) && mySongs.has(owner, song.id)) mySongs.save(owner, { ...song, lines })
+      })
+      .catch(() => {})
+  }
+
   function tooMany(req, res, bucket, max) {
     if (limiter.check(`${bucket}:${clientIp(req)}`, max).allowed) return false
     res.set('Retry-After', '30')
@@ -209,6 +232,10 @@ function mountSongRoutes(app, {
     // null = 不限,數字 = 前幾句,其他(例如未知的等級讓 paywall-kit 回 false)一律一句都不給
     const visible = limit === null ? song.lines : typeof limit === 'number' ? song.lines.slice(0, limit) : []
     const lastVisible = visible[visible.length - 1]
+    // 中文字幕:免費會員前幾句,Pro 全部;花 credit 解鎖的那一首當天也全開。
+    // 自己加的歌句數不切,但中文照樣算 —— 鎖住的中文不送出去,只留一個「這句有中文」的記號
+    const zhLimit = typing && unlocked ? null : plans.quota(tier, 'typingZh')
+    const zhOpen = (index) => zhLimit === null || (typeof zhLimit === 'number' && index < zhLimit)
     // 每一句附上「挖哪幾個字」的候選位置(難的排前面),前端決定要用幾個
     const candidates = blanksOf(song)
     return {
@@ -230,7 +257,12 @@ function mountSongRoutes(app, {
       lockedFrom: visible.length < song.lines.length
         ? Math.max(song.lines[visible.length].start, lastVisible ? lastVisible.end : 0)
         : null,
-      lines: visible.map((line, index) => ({ ...line, blanks: candidates[index] || [] }))
+      lines: visible.map((line, index) => ({
+        ...line,
+        zh: zhOpen(index) ? line.zh : '',
+        zhLocked: Boolean(line.zh) && !zhOpen(index),
+        blanks: candidates[index] || []
+      }))
     }
   }
 
@@ -358,6 +390,7 @@ function mountSongRoutes(app, {
     if (tooMany(req, res, 'songs', 120)) return
     const song = mySongs.get(ownerOf(user), req.params.id)
     if (!song) return fail(res, 404, 'song_not_found')
+    fillZh(ownerOf(user), song)
     res.set('Cache-Control', 'no-store')
     return res.json({ success: true, data: present(song, user, tier, { own: true }) })
   })

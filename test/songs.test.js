@@ -415,3 +415,82 @@ test('沒設匯入器的話這幾支是 503,不是 500', async () => {
     server.close()
   }
 })
+
+// ---- 中文字幕:免費會員前 5 句,Pro 全部 ----
+
+test('中文字幕:免費會員只拿到前 5 句的中文,後面的不送出去', async () => {
+  const { server, base } = startApp(withSongs({ 'demo.json': SONG }))
+  try {
+    const { data } = await get(base, '/api/songs/demo', bearer('free@example.com'))
+    assert.equal(data.lines[4].zh, '第 5 句。')
+    assert.equal(data.lines[4].zhLocked, false)
+    assert.equal(data.lines[5].zh, '')
+    assert.equal(data.lines[5].zhLocked, true)
+    assert.ok(!JSON.stringify(data.lines).includes('第 6 句'))
+  } finally {
+    server.close()
+  }
+})
+
+test('中文字幕:Pro 每一句都有,沒有鎖', async () => {
+  const { server, base } = startApp(withSongs({ 'demo.json': SONG }))
+  try {
+    const { data } = await get(base, '/api/songs/demo', bearer(PRO_EMAIL))
+    assert.ok(data.lines.every((line) => line.zh && line.zhLocked === false))
+  } finally {
+    server.close()
+  }
+})
+
+test('中文字幕:自己加的歌句數不切,但中文一樣是免費前 5 句', async () => {
+  const mineDir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-mine-'))
+  const { server, base } = startApp(withSongs({ 'demo.json': SONG }), { importer: fakeImporter(), mineDir })
+  try {
+    const headers = bearer('free@example.com')
+    const added = await postJson(base, '/api/my-songs', headers, { url: 'https://youtu.be/UprcpdwuwCg' })
+    const { data } = await get(base, `/api/my-songs/${added.data.id}`, headers)
+    assert.equal(data.lines.length, 20)
+    assert.equal(data.lines[4].zh, '第 5 句。')
+    assert.equal(data.lines[5].zh, '')
+    assert.equal(data.lines[19].zhLocked, true)
+  } finally {
+    server.close()
+  }
+})
+
+test('中文字幕:這一句本來就沒有中文的話不算鎖住', async () => {
+  const noZh = LINES.map(({ zh, ...line }) => line)
+  const { server, base } = startApp(withSongs({ 'demo.json': { ...SONG, lines: noZh } }))
+  try {
+    const { data } = await get(base, '/api/songs/demo', bearer('free@example.com'))
+    assert.ok(data.lines.every((line) => line.zhLocked === false))
+  } finally {
+    server.close()
+  }
+})
+
+test('中文字幕:自己加的歌沒有中文,打開時背景補抓,下次打開就有', async () => {
+  const mineDir = fs.mkdtempSync(path.join(os.tmpdir(), 'te-mine-'))
+  const noZh = LINES.map(({ zh, ...line }) => line)
+  const importer = fakeImporter({ lines: noZh })
+  const asked = []
+  importer.translate = async (videoId) => {
+    asked.push(videoId)
+    return [{ start: 0, end: 3, text: '補上的中文' }]
+  }
+  const { server, base } = startApp(withSongs({ 'demo.json': SONG }), { importer, mineDir })
+  try {
+    const headers = bearer('free@example.com')
+    const added = await postJson(base, '/api/my-songs', headers, { url: 'https://youtu.be/UprcpdwuwCg' })
+    const first = await get(base, `/api/my-songs/${added.data.id}`, headers)
+    assert.equal(first.data.lines[0].zh, '')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const second = await get(base, `/api/my-songs/${added.data.id}`, headers)
+    assert.equal(second.data.lines[0].zh, '補上的中文')
+    // 已經有中文了就不再問;沒抓到的也要隔一陣子才再問
+    await get(base, `/api/my-songs/${added.data.id}`, headers)
+    assert.deepEqual(asked, ['UprcpdwuwCg'])
+  } finally {
+    server.close()
+  }
+})

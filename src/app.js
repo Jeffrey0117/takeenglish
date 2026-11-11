@@ -20,7 +20,7 @@ const { createLedger } = require('./ledger')
 const { mountScoreRoutes } = require('./score-routes')
 const { createBattles } = require('./battle')
 const { mountBattleRoutes } = require('./battle-routes')
-const { createYtDlp, importFromYouTube } = require('./song-import')
+const { createSongImporter } = require('./song-import')
 const { mountStudyRoutes, mountDictionaryRoute, createDailyUsage } = require('./study-routes')
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
@@ -94,7 +94,7 @@ function createApp({
   // 會員貼連結加歌:要有 yt-dlp 才開放(SONG_IMPORT=0 可以關掉)
   songImporter = process.env.SONG_IMPORT === '0'
     ? null
-    : ((ytdlp) => (url) => importFromYouTube(url, { ytdlp }))(createYtDlp()),
+    : createSongImporter(),
   letmeuse = {},
   // 廣告位:兩個都設好而且格式對才會出現在頁面上
   ads = { client: process.env.ADSENSE_CLIENT || '', slot: process.env.ADSENSE_SLOT || '' }

@@ -55,6 +55,9 @@
   50% { box-shadow: inset 0 -3px 0 transparent; }
 }
 .type-zh { margin-top: 10px; color: var(--muted); font-size: 14px; font-weight: 600; }
+/* 鎖住的中文:要浮在透明輸入框上面才點得到(輸入框鋪滿整個打字區) */
+.type-zh.locked { position: relative; z-index: 1; width: fit-content; cursor: pointer; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.type-zh.locked:hover { color: var(--yellow); }
 /* 真正收鍵盤的輸入框:透明、鋪滿整個打字區。
    ⚠️ 不要把它縮成 1px 的隱藏框 — Chrome 會把游標卡在位置 0,打出來的字整句反過來。
    鋪滿還有兩個好處:點哪裡都能開始打,手機會跳出鍵盤。 */

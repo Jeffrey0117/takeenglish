@@ -480,3 +480,39 @@ test('全部都是廢軌就回空的(讓上層去說「真的沒有字幕」)', 
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('中文字幕的清理:全形括號的音效描述、音符都不是歌詞', () => {
+  assert.equal(lyricText('（歡快的音樂）'), '')
+  assert.equal(lyricText('♪ 我一直想打電話 ♪'), '我一直想打電話')
+})
+
+test('匯入時順便要中文:對得上的句子帶 zh,抓不到中文也不影響匯入', async () => {
+  const zh = [
+    { start: 20.8, end: 25.4, text: '♪ 我的朋友都是異教徒 ♪' },
+    { start: 25.4, end: 26.4, text: '（輕柔的音樂）' }
+  ]
+  const song = await importFromYouTube('https://youtu.be/UprcpdwuwCg', { ytdlp: fakeYtDlp({ zh }), zh: true })
+  assert.equal(song.lines[0].zh, '我的朋友都是異教徒')
+  assert.equal(song.lines[1].zh, '')
+  const broken = fakeYtDlp()
+  broken.subtitles = async () => {
+    throw new Error('boom')
+  }
+  const plain = await importFromYouTube('https://youtu.be/UprcpdwuwCg', { ytdlp: broken, zh: true })
+  assert.equal(plain.lines.length, song.lines.length)
+})
+
+// YouTube 的翻譯字幕特別容易 429。那只代表「中文抓不到」,不能連英文匯入一起停掉
+test('中文被擋只記在中文自己的冷卻上:英文匯入照常,中文在冷卻內不再打 YouTube', async () => {
+  let runs = 0
+  const ytdlp = createYtDlp({
+    exec: (bin, args, opts, cb) => {
+      runs += 1
+      cb(null, '', 'HTTP Error 429: Too Many Requests')
+    }
+  })
+  await assert.rejects(() => ytdlp.translations('UprcpdwuwCg'), (err) => err.code === 'zh_rate_limited')
+  assert.equal(ytdlp.blockedFor, 0)
+  await assert.rejects(() => ytdlp.translations('UprcpdwuwCg'), (err) => err.code === 'zh_rate_limited')
+  assert.equal(runs, 1)
+})
