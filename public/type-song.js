@@ -486,10 +486,17 @@
     // Tab = 只是「給我看答案」,不會換句。
     // 看到答案想照著打一次的人可以打完再按 Enter;要直接往下請按 ↓。
     function reveal() {
-      if (state.revealed || state.correct) return
+      const line = currentLine()
+      if (!line || state.correct) return
       state.revealed = true
       state.rejected = false
-      // 已經打的字留著:答案只是把還沒打的那幾格掀開,接著打完就好
+      // 打對的開頭留著,從第一個打錯的地方開始退掉 —— 錯的字會蓋住答案
+      // (整句打滿但有錯的時候,不退的話按了看答案畫面上什麼都不會變)。
+      // 游標停在第一個錯的位置,從那裡接著打完就好。已經掀開過再按一次也照這樣整理
+      let good = 0
+      while (good < state.typed.length && same(state.typed[good], line.text[good])) good += 1
+      state.typed = state.typed.slice(0, good)
+      input.value = state.typed
       if (!done[state.index]) done[state.index] = 'revealed'
       paintLine()
       paintProgress()
