@@ -88,7 +88,8 @@ body.searching .site-head { display: flex; }
   margin-left: 0;
 }
 body.searching .auth-corner { display: none; }
-.auth-user { color: var(--muted); font-size: 13px; font-weight: 700; }
+.auth-user { color: var(--muted); font-size: 13px; font-weight: 700; text-decoration: none; }
+a.auth-user:hover { color: var(--yellow); }
 .auth-btn {
   background: transparent;
   border: 2px solid var(--yellow);

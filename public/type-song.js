@@ -759,6 +759,14 @@
     // 「我要怎麼跟朋友 PK」不該需要先找到那顆鈕。?battle= 是對手傳的連結,直接進房
     const invited = (params.get('battle') || '').trim()
     if (song.signedIn && !song.own) openBattle(invited)
+    // 自己加的歌沒有對戰。什麼都不畫的話只會覺得「對戰不見了」,要講為什麼、去哪裡才有
+    if (song.own) {
+      const note = el('p', 'battle-own-note', TEXT.battleOwn)
+      const go = el('a', '', TEXT.battleOwnGo)
+      go.href = '/type'
+      note.append(' ', go)
+      battleMount.append(note)
+    }
 
     // 走 goTo 而不是直接 repaint:第一句的挖空要先算出來,不然整句都只是文字
     goTo(0)

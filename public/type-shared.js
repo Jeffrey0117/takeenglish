@@ -55,6 +55,8 @@
   openWho: (names, waiting, seats) => `${names} · ${waiting}/${seats} 人`,
   openJoin: '加入 →',
     battle: '對戰',
+    battleOwn: '對戰只開放歌庫裡的歌 — 自己加的歌對手那邊沒有',
+    battleOwnGo: '去歌庫挑一首對戰',
     battleGuest: '登入後可以跟朋友對戰同一首歌',
     // credit
     creditUnlock: (left) => `用 1 點解鎖整首(今天還有 ${left} 點)`,

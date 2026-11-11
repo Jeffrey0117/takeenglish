@@ -535,7 +535,10 @@ function renderAuth() {
       upgrade.onclick = openUpgrade
       area.appendChild(upgrade)
     }
-    const name = document.createElement('span')
+    // 名字就是進「我的帳號」的入口
+    const name = document.createElement('a')
+    name.href = '/me'
+    name.title = '我的帳號'
     name.className = 'auth-user'
     name.textContent = state.user.name || state.user.email || ''
     const logout = document.createElement('button')

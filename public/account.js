@@ -7,7 +7,8 @@
     login: '登入',
     logout: '登出',
     upgrade: '升級 Pro',
-    manage: '管理訂閱'
+    manage: '管理訂閱',
+    account: '我的帳號'
   }
   // 等級徽章。免費會員不給徽章,給一顆「升級 Pro」
   const BADGE = { pro: 'PRO', pro_plus: 'PRO+' }
@@ -48,7 +49,11 @@
       upgrade.href = '/#plans'
       area.append(upgrade)
     }
-    area.append(el('span', 'auth-user', user.name || user.email || ''))
+    // 名字就是進「我的帳號」的入口
+    const name = el('a', 'auth-user', user.name || user.email || '')
+    name.href = '/me'
+    name.title = TEXT.account
+    area.append(name)
     const logout = el('button', 'auth-btn quiet', TEXT.logout)
     logout.type = 'button'
     logout.onclick = () => {

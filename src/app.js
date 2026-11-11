@@ -139,6 +139,7 @@ function createApp({
   app.get('/watch', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'watch.html')))
   app.get('/lessons', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'lessons.html')))
   app.get('/type', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'type.html')))
+  app.get('/me', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'me.html')))
 
   app.use(express.static(PUBLIC_DIR))
 
