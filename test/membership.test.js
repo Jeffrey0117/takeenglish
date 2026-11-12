@@ -34,6 +34,8 @@ function fakePaygateServer({ subscribers = {}, plans = [PLAN], down = false } = 
     if (state.down) throw new Error('connect ECONNREFUSED')
     const json = (status, data) => new Response(JSON.stringify(data), { status })
     if (u.pathname === '/api/subscription/check') {
+      // 跟真的 PayGate 一樣:訂閱查詢沒帶 token 就不回答
+      if ((init.headers || {}).Authorization !== 'Bearer paygate-token') return json(401, { error: 'Unauthorized' })
       const until = state.subscribers[u.searchParams.get('email')]
       return json(200, until ? { active: true, tier: 'pro', end_date: until } : { active: false })
     }

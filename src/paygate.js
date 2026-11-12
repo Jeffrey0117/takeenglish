@@ -72,7 +72,8 @@ function createPaygate({
         const query = new URLSearchParams({ email: key, product: name })
         let data
         try {
-          data = await call(`/api/subscription/check?${query}`)
+          // PayGate 的訂閱查詢要帶 token 才回答
+          data = await call(`/api/subscription/check?${query}`, { auth: true })
           // 回應長得不對就當失敗,不要把付費的人誤記成免費
           if (typeof data.active !== 'boolean') throw new Error('subscription check returned no "active" field')
         } catch (err) {
